@@ -1,0 +1,1635 @@
+' Konstanten Positionen in .zpp Datei
+Const Flash_Start_Con As Long = 129     ' Start Decoder-Flashdaten in zpp-Datei (+Offset 1 weil VB6 mit Index 1 auf Fileposition 0 zugreift)
+Const Offset_Daten_Con As Long = 2560   ' Offset Daten
+Const Set_Start = 2048
+Const DiSet_Start = 2112
+Const Lok_Set_Start = 2208
+Const Lok_DiSet_Start = 2272
+Const Software_Start = 2185
+Const HG_Schaltw_Start = 2336
+Const Flash_Len_Adr = 2196
+Const Coll_Name_Adr = 2180
+
+Dim ShiftKey As Integer
+Dim Reset_Data_Start As Long
+Dim Flash_Start As Long
+Dim Eprom_Start As Long
+Dim Eprom_Len As Long
+Dim SNamen_Start As Long
+
+Public Abbruch_Anforderung As Boolean
+Dim Run_Active As Boolean
+Dim Reload As Boolean
+Dim Decoder_ID As Integer
+Dim Decoder_Version As Integer
+Dim Decoder_Version2 As Integer
+Dim Speichergroesse As Long
+Dim vorteiler_doevents As Integer
+Dim out4byte(3) As Byte
+Dim OutArr() As Byte
+Dim ack_korr As Boolean
+Dim ByteTemp As Byte
+Dim i1 As Integer
+Dim Last_Block As Integer
+Dim LokSetAdr(63) As Long
+Dim AktLok As Integer
+'-----------
+Public Flash_RTU As Boolean
+Public RTU_File As String  ' Wenn .zpp Datei gleich übergeben wird kein Open Fenster öffnen
+Public nur_cv As Boolean
+Public Write_RTU As Boolean
+Public Write_via_SUSI As Boolean
+Public Verify_Flash As Boolean
+Dim buffer As String
+Dim Y As Integer
+Dim waitcnt As Integer
+Dim BlockU As Integer
+Dim BlockH As Integer
+Dim BlockL As Integer
+Dim filepos As Long
+Dim filepos_last As Long
+Dim readbuffer As Byte
+Dim blockhmax As Integer
+Dim blocklmax As Integer
+Dim Blockanzahl As Long
+Dim inbuffer As Variant
+Dim inbyte() As Byte
+Dim RXflag As Boolean
+Dim timeout As Boolean
+Dim timerflag As Boolean
+Dim timercnt As Integer
+Dim test As Integer
+Dim CVIn As Integer
+Dim Str As String
+
+Dim outadr As Long
+Dim z As Integer
+Dim instring As String
+Dim inlong As Long
+Dim dataend As Long
+Dim rate As Integer
+Dim slotinit As Byte
+Dim datacount As Long
+Dim startadressen(64) As Long
+Dim adru, adrh, adrl As Byte
+Dim temp As Long
+Dim b As Byte
+Dim l As Long
+Dim st As Integer
+Dim Crcbyte As Byte
+
+Dim SIndex(259) As Integer      ' Reihenfolge im Flash, zeigt auf Samples(x)
+Dim findex(259) As Integer      ' Reihenfolge im Flash, zeigt auf Samples(x)
+Dim startadr(259) As Long
+Dim findexcnt As Integer
+
+Public Flash_Gestartet As Boolean
+Dim i As Integer
+
+Dim outdata As Variant
+Dim out1byte(0) As Byte
+Dim out260byte(260) As Byte
+Dim out16byte(15) As Byte
+
+Dim bits(7) As Boolean
+Dim Reset_Set_Adr As Integer
+Dim Events_Adr As Integer
+Dim Scripts_Adr As Integer
+
+Dim fehler_ret As VbMsgBoxResult
+Dim Timeout_Flash As Boolean
+
+Dim Func_Ret As Integer
+Dim Verbindung As Boolean
+Dim Akt_Decoder_Protokoll_Ver As Integer
+Dim Events_Outadr As Long
+Dim Blocks_gesamt As Long
+Dim Flash_Len As Long
+Dim Err_Count As Long
+Dim Fehler_beim_Schreiben As Boolean
+
+' -------------------------------------------------------------------
+
+Private Sub verbindung_aufbauen()
+    Err_Count = 0
+    If Write_via_SUSI = True Then
+        Call verbindung_aufbauen_SUSI
+    Else
+        Call verbindung_aufbauen_Schiene
+    End If
+End Sub
+
+
+Private Sub verbindung_aufbauen_Schiene()
+	Dim MX31zl_ein As String
+	Dim Rueckmeldung_Soll As String
+	Dim read_str As String
+	Dim X As Integer
+	Dim strtmp As String
+	Dim Enter_Str As String
+
+	Verbindung = False
+	List1.Clear
+	If MSComm1.PortOpen = False Then
+		MSComm1.OverlappedIO = False
+		MSComm1.Settings = "38400,N,8,2"
+		MSComm1.Handshaking = comNone
+		MSComm1.InputLen = 0
+		MSComm1.InputMode = comInputModeText
+		MSComm1.RTSEnable = False     ' Schiene aus
+		MSComm1.DTREnable = False
+		MSComm1.CommPort = comport
+		MSComm1.RThreshold = 0
+		MSComm1.SThreshold = 0
+		MSComm1.PortOpen = True
+	End If
+	MSComm1.RThreshold = 0
+	MSComm1.SThreshold = 0
+	timeout = False
+
+	' --------------- Fragen ob MX31ZL ---------------------
+	wait 50
+	Y = 1
+	Enter_Str = Chr$(13)
+	MX31zl_ein = "DECUP_EIN" & Chr$(13)
+	Rueckmeldung_Soll = "OK" & Chr$(13)
+	MSComm1.output = Enter_Str
+	wait 10
+	DoEvents
+	MSComm1.output = MX31zl_ein
+	wait 50
+	read_str = MSComm1.Input
+	If read_str = Rueckmeldung_Soll Then MX31ZL_Conn = True
+	If InStr(1, read_str, Rueckmeldung_Soll, vbTextCompare) > 0 Then MX31ZL_Conn = True
+	MSComm1.InputMode = comInputModeBinary
+	If MX31ZL_Conn = True Then
+	  List1.AddItem "MX31ZL gefunden"
+	  List1.ListIndex = List1.ListCount - 1
+	  wait 20
+	End If
+	MSComm1.RThreshold = 1
+	MSComm1.InputLen = 1
+
+	Dim outdata2 As Variant
+	Dim out1byte2(0) As Byte
+	Dim mStartTime As Long
+	Dim mAktTime As Long
+	Dim W1 As Long
+	Dim W2 As Long
+	Dim Pausen_Timing As Long
+	Pausen_Timing = 100000
+
+	' Preamble initialisieren
+	out1byte(0) = CByte(239)
+	outdata = out1byte
+	out1byte2(0) = CByte(191)
+	outdata2 = out1byte2
+
+	' --------------- Timing messen (optional, für exakte Pausenzeiten zwischen den Preamble-Bytes) ---------------------
+	Dim Zeit_20_Pream As Long
+	Dim Max_Trys_Timing As Long
+	Dim Timing_ok As Boolean
+	Max_Trys_Timing = 0
+	Do
+		mStartTime = GetTime
+		For W1 = 1 To 20
+			MSComm1.output = outdata
+			For W2 = 0 To Pausen_Timing
+			Next
+			MSComm1.output = outdata2
+			For W2 = 0 To Pausen_Timing
+			Next
+		Next
+		mAktTime = GetTime
+		Zeit_20_Pream = mAktTime - mStartTime
+		Timing_ok = True
+		If Zeit_20_Pream < (Pausenzeit * 1) Then Timing_ok = False
+		If Zeit_20_Pream > (Pausenzeit * 1.5) Then Timing_ok = False
+		If Zeit_20_Pream < (Pausenzeit / 2) Then Zeit_20_Pream = (Pausenzeit / 2)
+		If Timing_ok = False Then
+			Pausen_Timing = (Pausen_Timing / Zeit_20_Pream) * Pausenzeit
+			If Pausen_Timing < 1000 Then Pausen_Timing = 1000
+			DoEvents
+		End If
+		Debug.Print "Timing: " & Zeit_20_Pream & " " & Pausen_Timing
+		DoEvents
+		Max_Trys_Timing = Max_Trys_Timing + 1
+	Loop Until Timing_ok = True Or Max_Trys_Timing > 20
+
+	' --------------- 4 Verbindungsversuche ---------------------
+	next_try:
+	' Preamble initialisieren
+	out1byte(0) = CByte(239)
+	outdata = out1byte
+	out1byte2(0) = CByte(191)
+	outdata2 = out1byte2
+
+	If Abbruch_Anforderung = True Then Exit Sub
+
+	List1.AddItem "Verbindungsversuch " + CStr(Y)
+	List1.ListIndex = List1.ListCount - 1
+	wait 1
+
+	' --------------- Schiene ein ---------------------
+	RTS_ON
+
+	' --------------- Preamble senden ---------------------
+
+	mStartTime = GetTime
+
+	Do While GetTime - mStartTime < 5
+	Loop
+	For W1 = 1 To Anz_Preamble_Bits
+		MSComm1.output = outdata2
+		For W2 = 0 To Pausen_Timing
+		Next
+		MSComm1.output = outdata
+		For W2 = 0 To Pausen_Timing
+		Next
+		MSComm1.output = outdata
+		For W2 = 0 To Pausen_Timing
+		Next
+	Next
+
+	mAktTime = GetTime
+	wait 10
+	DoEvents
+	MSComm1.InBufferCount = 0
+
+	' --------------- CV8 auslesen versuchen ---------------------
+	X = Read_EE(7) 'CV8
+	If X <> 145 Then GoTo no_answer
+
+	List1.AddItem "Verbindung hergestellt"
+
+	Akt_Decoder = Read_EE(Sondercvs.EDecTyp)
+	Akt_Decoder_Typ = 0
+	Sounddecoder = False
+
+	strtmp = SB_to_Decodertyp(Akt_Decoder)
+	Speichergroesse = Get_Flash_Size(Decoder.Typ)
+
+	Akt_Decoder_Protokoll_Ver = Read_EE(Sondercvs.EProtokollVer)
+	If Akt_Decoder_Protokoll_Ver = 256 Then Akt_Decoder_Protokoll_Ver = 0 ' 256=keine Antwort=alter Decoder=Version 0
+	If Akt_Decoder_Protokoll_Ver > 0 Then CRC_New = 1   ' ab Version 1 neue CRC-Berechnung für Flash und Eprom schreiben verwenden
+
+	Debug.Print "Decoder=" & strtmp
+	Debug.Print "Protokoll=" & Akt_Decoder_Protokoll_Ver
+
+	Decoder_Version = Read_EE(6)
+	List1.AddItem strtmp & " Version " & Decoder_Version & " gefunden"
+	List1.ListIndex = List1.ListCount - 1
+	Verbindung = True
+	Exit Sub
+
+	no_answer:
+	RTS_OFF
+	Y = Y + 1
+	If Y = 11 Then
+		List1.AddItem "Abbruch"
+		List1.ListIndex = List1.ListCount - 1
+		If MSComm1.PortOpen = True Then MSComm1.PortOpen = False
+		Exit Sub
+	End If
+
+	wait (Y * 20)
+	GoTo next_try
+End Sub
+
+
+Private Sub verbindung_aufbauen_SUSI()
+	Dim MXULF_SUSI_EIN, Rueckmeldung_Soll, read_str As String
+	Dim MXULF_SUSI_CONN As Boolean
+	Dim out12byte(11) As Byte
+	Dim out13byte(12) As Byte
+	Dim CV8_Temp As Integer
+	Dim CV250_Temp As Integer
+	Dim strtmp As String
+
+	Verbindung = False
+	List1.Clear
+	If MSComm1.PortOpen = False Then
+		MSComm1.OverlappedIO = False
+		MSComm1.Settings = "38400,N,8,2"
+		MSComm1.Handshaking = comNone
+		MSComm1.InputLen = 0
+		MSComm1.InputMode = comInputModeText
+		MSComm1.RTSEnable = False     ' Schiene aus
+		MSComm1.DTREnable = False
+		MSComm1.CommPort = comport
+		MSComm1.RThreshold = 0
+		MSComm1.SThreshold = 0
+		MSComm1.PortOpen = True
+	End If
+	MSComm1.RThreshold = 0
+	MSComm1.SThreshold = 0
+	timeout = False
+
+	' --------------- Fragen ob MXULF ---------------------
+	wait 50
+	Y = 1
+	MXULF_SUSI_EIN = "SUSIV2" & Chr$(13)
+	Rueckmeldung_Soll = "OK" & Chr$(13)
+	MSComm1.output = MXULF_SUSI_EIN
+	wait 50 ' [50*10ms=500ms]
+	read_str = MSComm1.Input
+	MSComm1.InputMode = comInputModeBinary
+	If read_str = Rueckmeldung_Soll Then MXULF_SUSI_CONN = True
+	If InStr(1, read_str, Rueckmeldung_Soll, vbTextCompare) > 0 Then MXULF_SUSI_CONN = True
+
+	If MXULF_SUSI_CONN = True Then
+		List1.AddItem "MXULF " & Strings(163, Sprache)
+		List1.ListIndex = List1.ListCount - 1
+		wait 50 ' [100*10ms=1s]
+		If Read_CV(8, CV8_Temp) = False Then
+			List1.AddItem "Decoder " & Strings(165, Sprache)
+			List1.ListIndex = List1.ListCount - 1
+			Exit Sub
+		End If
+		If CV8_Temp <> 145 Then Exit Sub
+		Verbindung = True
+	Else
+		List1.AddItem "MXULF " & Strings(165, Sprache)
+		List1.ListIndex = List1.ListCount - 1
+		Exit Sub
+	End If
+
+	Speichergroesse = Get_Flash_Size(Decoder.Typ)
+	Exit Sub
+End Sub
+
+
+Private Function Read_CV(CV_Num As Integer, ByRef CV_Val As Integer) As Boolean
+	' Bis zu 10 Mal CV lesen versuchen und dann True zurückgeben wenn Ok und Wert in Handle "CV_Val" reinschreiben
+	Dim CV_Val_Temp As Integer
+	Dim Fehlercnt As Integer
+	Dim Wert_Ok As Boolean
+
+	Fehlercnt = 10
+	Wert_Ok = False
+	Do While Fehlercnt > 0
+		CV_Val_Temp = Read_EE(CV_Num - 1)   ' Einmal CV lesen
+		If CV_Val_Temp = 256 Then
+			Fehlercnt = Fehlercnt - 1
+		Else
+			CV_Val = CV_Val_Temp
+			Wert_Ok = True
+			Exit Do
+		End If
+		If Abbruch_Anforderung = True Then
+			Read_CV = False
+			Exit Function
+		End If
+	Loop
+	Read_CV = Wert_Ok
+End Function
+
+
+Public Function Write_CV(ByVal EE_Adr As Integer, ByVal CV_Wert As Integer) As Boolean
+    Write_CV = True
+    If EE_Adr = 6 Then Exit Function 'CV7
+    If EE_Adr = 7 Then Exit Function 'CV8
+    If Write_via_SUSI = True Then
+        Write_CV = Write_CV_SUSI(EE_Adr, CV_Wert)
+    Else
+        Write_CV = Write_CV_Schiene(EE_Adr, CV_Wert)
+    End If
+End Function
+
+
+Public Function Write_CV_SUSI(ByVal EE_Adr As Integer, ByVal CV_Wert As Integer) As Boolean
+	Dim out13byte(12) As Byte
+	Dim i, ErrCnt As Integer
+
+	ErrCnt = 0
+	MSComm1.InputMode = comInputModeBinary
+	MSComm1.RThreshold = 1
+	MSComm1.InputLen = 1
+	MSComm1.InBufferCount = 0
+	timeout = False
+	If Err_Count > 10 Then
+		wait 2
+	End If
+	out13byte(0) = 0: out13byte(1) = 0: out13byte(2) = 0: out13byte(3) = 0
+	out13byte(4) = 1 'Busy
+	out13byte(5) = 2 'Cmd
+	out13byte(6) = 0 'Anz. CVs
+	out13byte(7) = 0
+	out13byte(8) = 0
+	out13byte(9) = Int(EE_Adr / 256)
+	out13byte(10) = (EE_Adr Mod 256) 'CV Adr.
+	out13byte(11) = CV_Wert ' CV-Wert der geschrieben werden soll
+	Crcbyte = &H0
+	For i = 5 To 11
+		Crcbyte = CRC8(Crcbyte, out13byte(i))
+	Next
+	out13byte(12) = Crcbyte ' CRC
+	outdata = out13byte()
+	Do
+		If ErrCnt > 10 Then
+			Write_CV_SUSI = False
+			Exit Function
+		End If
+		ErrCnt = ErrCnt + 1
+		MSComm1.output = outdata
+		Call Wait_Ack
+		
+		If inbyte(0) = SUSI_USB.Ack Then ack_korr = True Else ack_korr = False
+		If ack_korr = True Then
+			Debug.Print "CV" & CStr(EE_Adr) & " Ack Ok " & CStr(BlockH) & " " & CStr(BlockL)
+		Else
+			Debug.Print "CV" & CStr(EE_Adr) & " Nack " & CStr(BlockH) & " " & CStr(BlockL)
+			Err_Count = Err_Count + 1
+		End If
+	Loop Until ack_korr = True
+	Write_CV_SUSI = True
+End Function
+
+
+Public Function Write_CV_Schiene(ByVal EE_Adr As Integer, ByVal CV_Wert As Integer) As Boolean
+	Dim readeecnt As Integer
+	Dim out5byte() As Byte
+
+	If CRC_New = 1 Then
+		ReDim out5byte(5)
+	Else
+		ReDim out5byte(4)
+	End If
+
+	For readeecnt = 1 To 2
+		timeout = False
+		MSComm1.InBufferCount = 0
+		If CRC_New = 1 Then
+			out5byte(0) = 6                             ' CV schreiben
+		Else
+			out5byte(0) = 2                             ' CV schreiben
+		End If
+		out5byte(1) = 170                           ' Sicherheitsbyte "AA"
+		out5byte(2) = Int(EE_Adr / 256)             ' CV Adresse High
+		out5byte(3) = (EE_Adr Mod 256)              ' CV Nummer Low-Teil
+		If CRC_New = 1 Then
+			Crcbyte = &H0
+			Crcbyte = CRC8(Crcbyte, out5byte(2))
+			Crcbyte = CRC8(Crcbyte, out5byte(3))
+			Crcbyte = CRC8(Crcbyte, CByte(CV_Wert))
+			out5byte(4) = Crcbyte
+			out5byte(5) = CV_Wert                       ' CV Wert
+		Else
+			out5byte(4) = CV_Wert                       ' CV Wert
+		End If
+		outdata = out5byte
+		MSComm1.output = outdata
+		Call Wait_Ack
+	Next
+	Write_CV_Schiene = True
+End Function
+
+
+Public Function Read_EE(ByVal EE_Adr As Integer) As Integer
+    If Write_via_SUSI = True Then
+        Read_EE = Read_EE_SUSI(EE_Adr)
+    Else
+        Read_EE = Read_EE_Schiene(EE_Adr)
+    End If
+End Function
+
+
+Public Function Read_EE_SUSI(ByVal EE_Adr As Integer) As Integer
+	Dim cnt As Integer
+	Dim Read_EE_2 As Integer
+	Dim Empfang_timeout As Boolean
+	Dim Empfang_Retry As Integer
+	Dim i As Integer
+	Dim Crcbyte As Byte
+	Dim OutArr() As Byte
+	Dim InData(2) As Byte
+	Dim Byte1da As Boolean
+	Dim Byte2da As Boolean
+	Dim BytesDa As Integer
+	Dim BytesRead As Integer
+	Dim DebugStr As String
+
+	BytesDa = 0
+	Byte1da = False
+	Byte2da = False
+	timeout = False
+	MSComm1.InBufferCount = 0
+	MSComm1.InputLen = 0
+	MSComm1.SThreshold = 0
+	MSComm1.RThreshold = 0
+	Read_EE_SUSI = 0
+	ReDim OutArr(11)
+	OutArr(0) = 0: OutArr(1) = 0: OutArr(2) = 0: OutArr(3) = 2
+	OutArr(4) = 1 'Busy
+	OutArr(5) = 1 'Cmd
+	OutArr(6) = 0 'Anz. CVs
+	OutArr(7) = 0
+	OutArr(8) = 0
+	OutArr(9) = Int(EE_Adr / 256)
+	OutArr(10) = (EE_Adr Mod 256) 'CV Adr.
+	Crcbyte = &H0
+	For i = 5 To 10
+		Crcbyte = CRC8(Crcbyte, OutArr(i))
+	Next
+	OutArr(11) = Crcbyte ' CRC
+	outdata = OutArr()
+
+	MSComm1.InBufferCount = 0
+	MSComm1.output = outdata
+
+	wait 2 'Min=2 sonst kein Empfang
+
+	timercnt = 10
+	timerflag = False
+	Timer1.Interval = 100    ' 1s
+	Timer1.Enabled = True
+
+	Do
+	DoEvents
+		If MSComm1.InBufferCount > 0 Then
+			inbyte = MSComm1.Input
+			BytesRead = UBound(inbyte) + 1
+			For i = 0 To (BytesRead - 1)
+				InData(BytesDa + i) = inbyte(i)
+			Next
+			BytesDa = BytesDa + BytesRead
+		End If
+	Loop Until timerflag = True Or BytesDa >= 3
+
+	Timer1.Enabled = False
+
+	If timerflag = True Then
+		Read_EE_SUSI = 256 ' 256=Spezialwert für Ungültig
+	Else
+
+		If InData(0) = SUSI_USB.Ack And BytesDa = 3 Then
+			Crcbyte = &H0
+			Crcbyte = CRC8(Crcbyte, InData(1))
+			If Crcbyte = InData(2) Then
+				Read_EE_SUSI = InData(1)
+			Else
+				Read_EE_SUSI = 256
+			End If
+		Else
+			Read_EE_SUSI = 256
+		End If
+	End If
+
+	If timerflag = True Then
+		DebugStr = "Read CV Timeout"
+	Else
+		DebugStr = "Read CV " & CStr(EE_Adr + 1) & " Bytes Read: " & CStr(BytesDa) & " Data: "
+		For i = 1 To BytesDa
+			DebugStr = DebugStr & CStr(InData(i - 1)) & " "
+		Next
+	End If
+
+	frm_log.lst_deb.AddItem DebugStr
+End Function
+
+
+Private Function Read_EE_Schiene(ByVal EE_Adr As Integer) As Integer
+	Dim cnt As Integer
+	Dim Read_EE_2 As Integer
+	Dim Empfang_timeout As Boolean
+	Dim Empfang_Retry As Integer
+	Dim Out3Byte(2) As Byte
+	Dim Out8Byte(7) As Byte
+	Dim mStartTime As Long
+	Dim mAktTime As Long
+
+	timeout = False
+	MSComm1.InBufferCount = 0
+
+	' ---- 1.Mal lesen ----
+	Empfang_Retry = 5
+	mStartTime = GetTime
+
+	Do
+		Read_EE_Schiene = 0
+
+		Select Case EE_Adr
+		Case Sondercvs.EDecTyp
+			buffer = Chr(4)                 ' Startbyte lesen
+			MSComm1.output = buffer
+		Case Sondercvs.EProtokollVer
+			buffer = Chr(7)                 ' Protokoll-Version lesen
+			MSComm1.output = buffer
+		Case Else
+			Out3Byte(0) = 1                 ' CV lesen
+			Out3Byte(1) = Int(EE_Adr / 256) ' CV Nummer High-Teil
+			Out3Byte(2) = EE_Adr Mod 256    ' CV Nummer Low-Teil
+			outdata = Out3Byte
+			MSComm1.output = outdata
+		End Select
+
+		Empfang_timeout = False
+		
+		For cnt = 0 To 7
+			If cnt > 0 Then
+				MSComm1.output = Chr(255)
+			End If
+			Call Wait_Ack
+			If RXflag = False Then
+				Empfang_timeout = True
+				Exit For
+			End If
+			If inbyte(0) = 28 Then Read_EE_Schiene = Read_EE_Schiene + 2 ^ cnt
+		Next
+		
+		Empfang_Retry = Empfang_Retry - 1
+
+		If Empfang_timeout = True Then
+			For cnt = 0 To 7
+				Out8Byte(cnt) = 0
+			Next
+			outdata = Out8Byte
+			MSComm1.output = outdata
+			wait (1)
+		End If
+
+	Loop Until Empfang_timeout = False Or Empfang_Retry = 0
+
+	If Empfang_timeout = True Then GoTo timeout
+
+	Read_Nochmal:
+	' ---- 2.Mal lesen ----
+	Empfang_Retry = 5
+
+	Do
+		Read_EE_2 = 0
+
+	Select Case EE_Adr
+	Case Sondercvs.EDecTyp
+		buffer = Chr(4)                 ' Startbyte lesen
+		MSComm1.output = buffer
+	Case Sondercvs.EProtokollVer
+		buffer = Chr(7)                 ' Protokoll-Version lesen
+		MSComm1.output = buffer
+	Case Else
+		Out3Byte(0) = 1                ' CV lesen
+		Out3Byte(1) = Int(EE_Adr / 256)     ' CV Nummer High-Teil
+		Out3Byte(2) = EE_Adr Mod 256   ' CV Nummer Low-Teil
+		outdata = Out3Byte
+		MSComm1.output = outdata
+	End Select
+
+		Empfang_timeout = False
+		
+		For cnt = 0 To 7
+			If cnt > 0 Then
+				MSComm1.output = Chr(255)
+			End If
+			Call Wait_Ack
+			If RXflag = False Then
+				Empfang_timeout = True
+				Exit For
+			End If
+			If inbyte(0) = 28 Then Read_EE_2 = Read_EE_2 + 2 ^ cnt
+		Next
+		
+		Empfang_Retry = Empfang_Retry - 1
+
+		If Empfang_timeout = True Then
+			For cnt = 0 To 7
+				Out8Byte(cnt) = 0
+			Next
+			outdata = Out8Byte
+			MSComm1.output = outdata
+		End If
+
+	Loop Until Empfang_timeout = False Or Empfang_Retry = 0
+
+	If Empfang_timeout = True Then GoTo timeout
+
+	If Read_EE_Schiene = Read_EE_2 Then
+		Exit Function
+	End If
+
+	Read_EE_Schiene = Read_EE_2
+	GoTo Read_Nochmal
+
+	Exit Function
+
+	timeout:
+	Read_EE_Schiene = 256
+End Function
+
+
+
+Private Function Program_EEprom() As Integer
+	Dim z_ed As Long
+	Dim a_ed As Long
+	Dim ba4(3) As Byte
+	Dim ba2(1) As Byte
+	Dim Eprom_Nr As Integer
+	Dim Eprom_Wert As Byte
+	Dim Eprom_Wert_I As Integer
+	Dim X As Integer
+	Dim Element As Variant
+
+	Open RTU_File For Binary As #1
+	  List1.AddItem ("EEPROM programmieren")
+	  List1.ListIndex = List1.ListCount - 1
+	  wait 20
+
+	'-------- Komplettes EEprom programmieren wenn Reset Set da----------
+	ProgressBar1.Value = 0
+	ProgressBar1.Min = 0
+	ProgressBar1.Max = EE_Größe
+	lab_3.Caption = " / " & CStr(EE_Größe)
+
+	If Flash_RTU = True Then
+		' Zeiger auf Eprom-Daten holen
+		Get #1, 14, ba4()
+		z_ed = CLng(ba4(0)) * 16777216 + CLng(ba4(1)) * 65536 + CLng(ba4(2)) * 256 + CLng(ba4(3))
+		
+		' Anzahl Eprom-Daten holen
+		Get #1, 18, ba2()
+		a_ed = CLng(ba2(0)) * 256 + CLng(ba2(1))
+		
+		For X = 0 To a_ed - 1
+			Get #1, z_ed + 1 + (X * 3), ba2()
+			Eprom_Nr = CLng(ba2(0)) * 256 + CLng(ba2(1))
+			Get #1, z_ed + 3 + (X * 3), Eprom_Wert
+			Eprom_Wert_I = Eprom_Wert
+			Select Case Eprom_Nr
+				Case 6, 259, 260, 261, 262 'CV7, CV260-263 nicht schreiben
+				Case Else
+					If Write_CV(Eprom_Nr, Eprom_Wert_I) = False Then
+						Program_EEprom = ProgEprom.EpromTimeout
+						Exit Function
+					End If
+			End Select
+			If X <= ProgressBar1.Max Then ProgressBar1.Value = X
+			lab_fs.Caption = CStr(X)
+			If Abbruch_Anforderung = True Then Exit For
+		Next
+		lab_fs.Caption = CStr(EE_Größe)
+		Close #1
+
+		Program_EEprom = ProgEprom.Ok
+		Exit Function
+	End If
+
+	' Einige CVs auf Fixwerte setzen um Probleme zu vermeiden
+	cvs_Tmp(7) = 0  ' CV7=0
+	cvs_Tmp(8) = 145  ' CV8=145
+	cvs_Tmp(31) = 0  ' CV31=0
+	cvs_Tmp(32) = 0  ' CV32=0
+	  
+	For X = 1 To EE_Größe
+		If Adr_lassen = 1 And Write_RTU = False Then
+		  Select Case X
+			Case 1, 17, 18, 29, 260, 261, 262, 263
+			  ' nichts machen
+			Case Else
+				If Write_CV((X - 1), cvs_Tmp(X)) = False Then
+					Program_EEprom = ProgEprom.EpromTimeout
+					Exit Function
+				End If
+		  End Select
+		Else
+		  Select Case X
+			Case 260, 261, 262, 263
+			  ' nichts machen
+			Case Else
+				If Write_CV((X - 1), cvs_Tmp(X)) = False Then
+					Program_EEprom = ProgEprom.EpromTimeout
+					Exit Function
+				End If
+		  End Select
+		End If
+		If X <= ProgressBar1.Max Then ProgressBar1.Value = X
+		lab_fs.Caption = CStr(X)
+		If Abbruch_Anforderung = True Then Exit For
+	Next
+
+	If EE_Größe <= ProgressBar1.Max Then ProgressBar1.Value = EE_Größe
+	Close #1
+	Program_EEprom = ProgEprom.Ok
+End Function
+
+
+Private Sub Clear_Flash_Schiene()
+        out4byte(0) = 3
+        out4byte(1) = 85
+        out4byte(2) = 255
+        out4byte(3) = 255
+        outdata = out4byte
+        MSComm1.output = outdata
+End Sub
+
+
+Private Sub Clear_Flash_SUSI()
+	Dim i As Integer
+    MSComm1.InputMode = comInputModeBinary
+    MSComm1.RThreshold = 1
+    MSComm1.InputLen = 1
+    MSComm1.InBufferCount = 0
+    timeout = False
+    
+    ReDim OutArr(8)
+    OutArr(0) = 0: OutArr(1) = 0: OutArr(2) = 0: OutArr(3) = 0
+    OutArr(4) = 1 'Busy
+    OutArr(5) = 4 'Cmd
+    OutArr(6) = &H55
+	OutArr(7) = &HAA 'Sicherheitsbytes
+    Crcbyte = &H0
+    For i = 5 To 7
+        Crcbyte = CRC8(Crcbyte, OutArr(i))
+    Next
+    OutArr(8) = Crcbyte ' CRC8
+    outdata = OutArr()
+    MSComm1.output = outdata
+End Sub
+
+
+Public Function Program_Flash_Pages() As ProgFlash
+    If Write_via_SUSI = True Then
+        Program_Flash_Pages = Program_Flash_Pages_SUSI
+    Else
+        If Verify_Flash = True Then
+            Program_Flash_Pages = Verify_Flash_Pages_Schiene
+        Else
+            Program_Flash_Pages = Program_Flash_Pages_Schiene
+        End If
+    End If
+End Function
+
+
+Private Function Program_Flash_Pages_Schiene() As ProgFlash
+	Dim X As Integer
+	Dim Akt_Block_Nr As Long
+	Dim Max_Block_Nr As Long
+	Dim Last_Block_Nr As Long
+	Dim try_resync As Integer
+	Const Max_Retrys = 30           ' 30 Retrys
+	Const Max_Retrys_Block0 = 60    ' 1 Minute Timeout bei Block 0 (Wegen Flash löschen)
+
+	Max_Block_Nr = Blockanzahl - 1
+	filepos_last = -1
+	Err_Count = 0
+	Last_Block_Nr = 0
+	Akt_Block_Nr = 0
+
+	Do
+		BlockH = Int(Akt_Block_Nr / 256)
+		BlockL = Akt_Block_Nr Mod 256
+		filepos = Flash_Start + (Akt_Block_Nr * 256)
+
+		' Paket zusammenbauen und senden
+		If CRC_New = 1 Then
+			out260byte(0) = 5                     ' Flash schreiben neuer CRC
+		Else
+			out260byte(0) = 3                     ' Flash schreiben alter XOR
+		End If
+		out260byte(1) = 85                    ' Sicherheitsbyte
+		out260byte(2) = BlockH                ' BlockH
+		out260byte(3) = BlockL                ' BlockL
+
+		If CRC_New = 1 Then
+			Crcbyte = &H55
+			Crcbyte = CRC8(Crcbyte, CByte(BlockH))
+			Crcbyte = CRC8(Crcbyte, CByte(BlockL))
+		Else
+			Crcbyte = 0
+		End If
+
+		For X = 0 To 255
+			If filepos > (Flash_Start + Flash_Len - 1) Then
+				readbuffer = 255
+			Else
+				Get #1, filepos, readbuffer
+			End If
+			Crcbyte = CRC8(Crcbyte, readbuffer)
+			out260byte(X + 4) = readbuffer
+			filepos = filepos + 1
+		Next
+		out260byte(260) = Crcbyte
+		outdata = out260byte
+		RXflag = False
+		MSComm1.output = outdata
+
+		' Auf Antwort warten
+		timercnt = 16               ' 16x
+		timerflag = False
+		Timer1.Interval = 10       ' 10ms
+		Timer1.Enabled = True       ' =160ms
+
+		Do While RXflag = False
+			If MSComm1.InBufferCount > 0 Then Call MSComm1_OnComm
+			If timerflag = True Then Exit Do
+			If Abbruch_Anforderung = True Then Exit Do
+			DoEvents
+		Loop
+
+		Timer1.Enabled = False
+		If Abbruch_Anforderung = True Then
+		  Program_Flash_Pages_Schiene = ProgFlash.UserAbort   'User Abbruch
+		  Exit Function
+		End If
+
+		' Antwort auswerten
+		If RXflag = False And ignore_timeout = 0 Then
+			' ----------- Timeout -------------
+			Err_Count = Err_Count + 1
+
+			' Bei Block 0 nur 1x pro Sekunde testen (Flash löscht vermutlich noch)
+			If Akt_Block_Nr = 0 Then
+				wait 100     ' 100*10ms=1s
+			End If
+
+			' Ausgabe in Listenfeld
+			If try_resync > (Max_Retrys / 2) Then
+				List1.AddItem ("Timeout - Paket wird wiederholt (Block " & CStr(Akt_Block_Nr) & " / Retry " & CStr(try_resync) & ")")
+				List1.ListIndex = List1.ListCount - 1
+			End If
+
+			' Schrittweise einen Block zurück gehen
+			If try_resync = Int((Max_Retrys * 3 / 4)) Or try_resync = Int((Max_Retrys * 2 / 4)) Or try_resync = Int((Max_Retrys * 1 / 4)) Then
+			  Akt_Block_Nr = Akt_Block_Nr - 1 ' vorletzten nochmal senden
+			End If
+
+			' 16 Byte für Resync schicken
+			If Akt_Block_Nr > 0 And try_resync > 0 Then
+				For i1 = 0 To 15
+					out16byte(i1) = 255
+				Next
+				outdata = out16byte
+				MSComm1.output = outdata
+				wait 3     ' 3*10ms=30ms
+			End If
+
+		Else
+			If RXflag = True And ignore_timeout = 0 Then
+				Blocks_gesamt = Akt_Block_Nr
+				ack_korr = True
+				Call bufferinbin
+				If bits(0) = True Then ack_korr = False
+				If bits(3) = False Then ack_korr = False
+				If bits(6) = True Then ack_korr = False
+				If ack_korr = False Then
+					' ----------- CRC-Fehler -------------
+					If try_resync > (Max_Retrys / 2) Then
+						List1.AddItem ("CRC-Fehler - Paket wird wiederholt (Block " & CStr(Akt_Block_Nr) & " / Retry " & CStr(try_resync) & ")")
+						List1.ListIndex = List1.ListCount - 1
+					End If
+
+					' Schrittweise einen Block zurück gehen und Resync schicken
+					If (try_resync = Int((Max_Retrys * 3 / 4)) Or try_resync = Int((Max_Retrys * 2 / 4)) Or try_resync = Int((Max_Retrys * 1 / 4))) And Akt_Block_Nr <> 8 Then
+						For i1 = 0 To 15
+							out16byte(i1) = 255
+						Next
+						outdata = out16byte
+						MSComm1.output = outdata
+						wait 3     ' 3*10ms=30ms
+					  
+						Akt_Block_Nr = Akt_Block_Nr - 1 ' Block eins zurück
+					End If
+				Else
+					Akt_Block_Nr = Akt_Block_Nr + 1 ' Nächsten Block senden
+				End If
+			End If
+		End If
+
+		If ignore_timeout = 1 Then          ' Wenn ohne Rückmeldung programmieren
+			Akt_Block_Nr = Akt_Block_Nr + 1 ' immer nächsten Block senden
+			Blocks_gesamt = Akt_Block_Nr
+		End If
+
+		' Unterlauf verhindern
+		If Akt_Block_Nr < 0 Then Akt_Block_Nr = 0
+
+		' Anzeige aktualisieren
+		lab_fs.Caption = CStr(Int(Akt_Block_Nr * 256 / 1024))
+		ProgressBar1.Value = Int(Akt_Block_Nr * ProgressBar1.Max / Max_Block_Nr) Mod ProgressBar1.Max
+
+		' Anz. Versuche neu laden wenn 1. Block oder vorher ein erfolgreicher Block war
+		If Akt_Block_Nr > Last_Block_Nr Then
+			try_resync = 0
+		Else
+			try_resync = try_resync + 1
+			If (Akt_Block_Nr > 0 And try_resync > Max_Retrys) Or (Akt_Block_Nr = 0 And try_resync > Max_Retrys_Block0) Then
+				Timeout_Flash = True
+				Exit Do
+			End If
+		End If
+		Last_Block_Nr = Akt_Block_Nr
+
+		If Timeout_Flash = True Then Exit Do
+	Loop Until Akt_Block_Nr > Max_Block_Nr
+	BlockH = Int(Akt_Block_Nr / 256)
+	BlockL = Akt_Block_Nr Mod 256
+	Program_Flash_Pages_Schiene = ProgFlash.Ok
+	If Akt_Block_Nr = 8 Then Program_Flash_Pages_Schiene = ProgFlash.Loadcode_Error
+End Function
+
+
+Private Function Program_Flash_Pages_SUSI() As ProgFlash
+	Dim X As Integer
+	Dim Akt_Block_Nr As Long
+	Dim Max_Block_Nr As Long
+	Dim Last_Block_Nr As Long
+	Dim try_resync As Integer
+	Const Max_Retrys = 30           ' 30 Retrys
+	Const Max_Retrys_Block0 = 60    ' 1 Minute Timeout bei Block 0 (Wegen Flash löschen)
+
+	ReDim OutArr(267)
+	OutArr(0) = 0
+	OutArr(1) = 0
+	OutArr(2) = 0
+	OutArr(3) = 0 'RX Bytes=0
+	OutArr(4) = 1 'Busy
+	OutArr(5) = 5 'Cmd
+	OutArr(6) = 255 'Länge=256 Byte
+	OutArr(10) = 0 'Adresse LSB
+
+	Max_Block_Nr = Blockanzahl - 1
+	filepos_last = -1
+	Err_Count = 0
+	Last_Block_Nr = 0
+	Akt_Block_Nr = 0
+
+	Do
+		BlockU = Int(Akt_Block_Nr / 65536)
+		BlockH = Int(Akt_Block_Nr / 256)
+		BlockL = Akt_Block_Nr Mod 256
+		filepos = Flash_Start + (Akt_Block_Nr * 256)
+
+		' Paket zusammenbauen und senden
+		OutArr(7) = BlockU 'Adresse MSB
+		OutArr(8) = BlockH 'Adresse
+		OutArr(9) = BlockL 'Adresse
+
+		' 256 Byte Flash-Daten aus Datei in Array kopieren
+		For X = 0 To 255
+			If filepos > (Flash_Start + Flash_Len - 1) Then
+				readbuffer = 255
+			Else
+				Get #1, filepos, readbuffer
+			End If
+			OutArr(X + 11) = readbuffer
+			filepos = filepos + 1
+		Next
+		
+		' CRC berechnen
+		Crcbyte = &H0
+		For i = 5 To 266
+			Crcbyte = CRC8(Crcbyte, OutArr(i))
+		Next
+		OutArr(267) = Crcbyte ' CRC
+
+		' Daten senden
+		outdata = OutArr()
+		RXflag = False
+		MSComm1.output = outdata
+
+		' Auf Antwort warten
+		timercnt = 400               ' 400x
+		timerflag = False
+		Timer1.Interval = 10       ' 10ms
+		Timer1.Enabled = True       ' =4s
+
+		Do While RXflag = False
+			If MSComm1.InBufferCount > 0 Then Call MSComm1_OnComm
+			If timerflag = True Then Exit Do
+			If Abbruch_Anforderung = True Then Exit Do
+			DoEvents
+		Loop
+
+		Timer1.Enabled = False
+		If Abbruch_Anforderung = True Then
+		  Program_Flash_Pages_SUSI = ProgFlash.UserAbort   'User Abbruch
+		  Exit Function
+		End If
+
+		' Antwort auswerten
+		If RXflag = False Then
+			' ----------- Timeout -------------
+			Err_Count = Err_Count + 1
+
+			' Bei Block 0 nur 1x pro Sekunde testen (Flash löscht vermutlich noch)
+			If Akt_Block_Nr = 0 Then
+				wait 100     ' 100*10ms=1s
+			End If
+
+			' Schrittweise einen Block zurück gehen
+			If try_resync = Int((Max_Retrys * 3 / 4)) Or try_resync = Int((Max_Retrys * 2 / 4)) Or try_resync = Int((Max_Retrys * 1 / 4)) Then
+			  Akt_Block_Nr = Akt_Block_Nr - 1 ' vorletzten nochmal senden
+			End If
+		Else
+			If RXflag = True And ignore_timeout = 0 Then
+				Blocks_gesamt = Akt_Block_Nr
+				If inbyte(0) = SUSI_USB.Ack Then ack_korr = True Else ack_korr = False
+				If ack_korr = False Then
+					' ----------- CRC-Fehler -------------
+					'Debug.Print "CRC falsch"
+					'Print #5, "Nack " & CStr(BlockH) & " " & CStr(BlockL)
+					If try_resync > (Max_Retrys / 2) Then
+						List1.AddItem ("CRC-Fehler - Paket wird wiederholt (Block " & CStr(Akt_Block_Nr) & " / Retry " & CStr(try_resync) & ")")
+						List1.ListIndex = List1.ListCount - 1
+					End If
+
+					' Schrittweise einen Block zurück gehen
+					If (try_resync = Int((Max_Retrys * 3 / 4)) Or try_resync = Int((Max_Retrys * 2 / 4)) Or try_resync = Int((Max_Retrys * 1 / 4))) And Akt_Block_Nr <> 8 Then
+						Akt_Block_Nr = Akt_Block_Nr - 1 ' Block eins zurück
+					End If
+				Else
+					'Print #5, "Ack Ok " & CStr(Akt_Block_Nr)
+					Akt_Block_Nr = Akt_Block_Nr + 1 ' Nächsten Block senden
+				End If
+			End If
+		End If
+
+		If ignore_timeout = 1 Then          ' Wenn ohne Rückmeldung programmieren
+			Akt_Block_Nr = Akt_Block_Nr + 1 ' immer nächsten Block senden
+			Blocks_gesamt = Akt_Block_Nr
+		End If
+
+		' Unterlauf verhindern
+		If Akt_Block_Nr < 0 Then Akt_Block_Nr = 0
+
+		' Anzeige aktualisieren
+		lab_fs.Caption = CStr(Int(Akt_Block_Nr * 256 / 1024))
+		ProgressBar1.Value = Int(Akt_Block_Nr * ProgressBar1.Max / Max_Block_Nr) Mod ProgressBar1.Max
+
+		' Anz. Versuche neu laden wenn 1. Block oder vorher ein erfolgreicher Block war
+		If Akt_Block_Nr > Last_Block_Nr Then
+			try_resync = 0
+		Else
+			try_resync = try_resync + 1
+			If (Akt_Block_Nr > 0 And try_resync > Max_Retrys) Or (Akt_Block_Nr = 0 And try_resync > Max_Retrys_Block0) Then
+				Timeout_Flash = True
+				Exit Do
+			End If
+		End If
+		Last_Block_Nr = Akt_Block_Nr
+
+		If Timeout_Flash = True Then Exit Do
+	Loop Until Akt_Block_Nr > Max_Block_Nr
+
+	BlockU = Int(Akt_Block_Nr / 65536)
+	BlockH = Int(Akt_Block_Nr / 256)
+	BlockL = Akt_Block_Nr Mod 256
+	Program_Flash_Pages_SUSI = ProgFlash.Ok
+	If Akt_Block_Nr = 8 Then Program_Flash_Pages_SUSI = ProgFlash.Loadcode_Error
+End Function
+
+
+Private Function Program_Flash() As ProgFlash
+	Dim ba4(3) As Byte
+	Dim Loesch_Anfang As Single
+	Dim Loesch_Ende As Single
+	Dim Loeschzeit As String
+	Dim r As Integer
+	Dim X As Integer
+	Dim Loesch_Ret As Boolean
+	Dim Clear_Ret As Boolean
+
+	Open RTU_File For Binary As #1
+
+	' Zeiger auf Flash-Daten holen
+	Get #1, 6, ba4()
+	Flash_Start = CLng(ba4(0)) * 16777216 + CLng(ba4(1)) * 65536 + CLng(ba4(2)) * 256 + CLng(ba4(3)) + 1
+	Get #1, 10, ba4()
+	Flash_Len = CLng(ba4(0)) * 16777216 + CLng(ba4(1)) * 65536 + CLng(ba4(2)) * 256 + CLng(ba4(3))
+
+	ProgressBar1.Value = 0
+	DoEvents
+	If Flash_Len Mod 256 = 0 Then
+		Blockanzahl = Int(Flash_Len / 256)
+	Else
+		Blockanzahl = Int(Flash_Len / 256) + 1
+	End If
+	lab_fs.Caption = "0"
+	lab_3.Caption = " /  " & CStr(Int(Blockanzahl / 4)) & " kB" ' Auf ganze Blöcke aufrunden
+	filepos = Flash_Start
+
+	' ------------- Flash löschen --------------
+	If Verify_Flash = False Then
+		MSComm1.RThreshold = 1
+		timeout = False
+		RXflag = False
+		
+		If Write_via_SUSI = True Then
+			Call Clear_Flash_SUSI
+		Else
+			Call Clear_Flash_Schiene
+		End If
+		
+		Loesch_Anfang = Timer
+		timerflag = False
+		Timer1.Interval = 1000
+		If Write_via_SUSI = True Then
+			timercnt = 100
+		Else
+			timercnt = 10
+		End If
+		Timer1.Enabled = True
+		T2Cnt = 0
+		Timer2.Interval = 100
+		Timer2.Enabled = True
+		Do
+			DoEvents
+			If timerflag = True Then Exit Do
+			ProgressBar1.Value = T2Cnt Mod ProgressBar1.Max
+			If Abbruch_Anforderung = True Then Exit Do
+		Loop Until RXflag = True
+		Timer1.Enabled = False
+		Timer2.Enabled = False
+		Loesch_Ende = Timer
+		Loeschzeit = "Löschzeit = " & CStr(Int(Loesch_Ende - Loesch_Anfang)) & "s"
+		If Write_via_SUSI = True Then
+			If RXflag = True Then
+				If inbyte(0) = SUSI_USB.Ack Then Clear_Ret = True Else Clear_Ret = False
+			Else
+				Clear_Ret = False
+			End If
+			If Clear_Ret = True Then
+				Debug.Print "Löschen Ok "
+			Else
+				Debug.Print "Löschen fehlgeschlagen "
+			End If
+			If Clear_Ret = False Then
+				Program_Flash = ProgFlash.FlashTimeout
+				Close #1
+				Exit Function
+			End If
+		End If
+	End If
+
+	' ------------- Flash programmieren --------------
+	ProgressBar1.Value = 0
+	ProgressBar1.Min = 0
+	ProgressBar1.Max = Blockanzahl - 1
+	Timeout_Flash = False
+	Blocks_gesamt = 0
+	filepos_last = 0
+
+	Program_Flash = Program_Flash_Pages
+
+	If Timeout_Flash = True Then
+	  List1.AddItem "Timeout bei Block " + CStr(Blocks_gesamt)
+	  List1.ListIndex = List1.ListCount - 1
+	  If Program_Flash = Loadcode_Error Then
+		List1.Clear
+		List1.AddItem "Load Code falsch!"
+		List1.AddItem "Bitte Load Code in CV260-263 programmieren."
+	  Else
+		Program_Flash = ProgFlash.FlashTimeout   'Timeout
+	  End If
+	  Close #1
+	  Exit Function
+	End If
+	Close #1
+	Exit Function
+End Function
+
+
+Private Sub Send_Ausstieg()
+    Err_Count = 0
+    If Write_via_SUSI = True Then
+        Call Send_Ausstieg_SUSI
+    Else
+        'Call Send_Ausstieg_Schiene ' Nicht nötig bei Schiene
+    End If
+End Sub
+
+
+Private Sub Send_Ausstieg_SUSI()
+	Dim outbyte(9) As Byte
+	Dim i, ErrCnt As Integer
+
+	outbyte(0) = 0: outbyte(1) = 0: outbyte(2) = 0: outbyte(3) = 0
+	outbyte(4) = 0 'Busy
+	outbyte(5) = 7 'Cmd Ausstieg
+	outbyte(6) = 85 '0x55
+	outbyte(7) = 170 '0xAA
+	outbyte(8) = 0 ' 0=Ausstieg
+	Crcbyte = &H0
+	For i = 5 To 8
+		Crcbyte = CRC8(Crcbyte, outbyte(i))
+	Next
+	outbyte(9) = Crcbyte ' CRC
+	outdata = outbyte()
+	MSComm1.output = outdata
+	Call Wait_Ack
+
+	If inbyte(0) = SUSI_USB.Ack Then ack_korr = True Else ack_korr = False
+	If ack_korr = True Then
+		Debug.Print "Ausstieg Ok"
+	Else
+		Debug.Print "Ausstieg Nack"
+	End If
+End Sub
+
+
+' ---------------------- UART Event --------------------------------
+
+Private Sub MSComm1_OnComm()
+   Select Case MSComm1.CommEvent
+
+   ' Errors
+      Case comEventBreak   ' A Break was received.
+         List1.AddItem "Break"
+      Case comEventFrame   ' Framing Error
+         List1.AddItem "Framing error"
+      Case comEventOverrun   ' Data Lost.
+               List1.AddItem "Data Lost"
+      Case comEventRxOver   ' Receive buffer overflow.
+         List1.AddItem "RxOver"
+      Case comEventRxParity   ' Parity Error.
+         List1.AddItem "Parity Error"
+      Case comEventTxFull   ' Transmit buffer full.
+         List1.AddItem "TX Full"
+      Case comEventDCB   ' Unexpected error retrieving DCB]
+         List1.AddItem "Unexpected Error"
+
+   ' Events
+      Case comEvCD   ' Change in the CD line.
+      Case comEvCTS   ' Change in the CTS line.
+      Case comEvDSR   ' Change in the DSR line.
+      Case comEvRing   ' Change in the Ring Indicator.
+      Case comEvReceive   ' Received RThreshold # of chars
+		Do  ' Nur letztes empfangenes Byte auswerten
+			inbyte = MSComm1.Input
+		Loop Until MSComm1.InBufferCount = 0
+		RXflag = True
+
+      Case comEvSend   ' There are SThreshold number of
+                     ' characters in the transmit
+                     ' buffer.
+      Case comEvEOF   ' An EOF charater was found in
+                     ' the input stream
+   End Select
+End Sub
+' ---------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+' ------------------ Unterroutinen und weniger wichtige Sachen ------------------------------
+
+Private Sub Wait_Ack()
+        RXflag = False
+        timeout = False
+        
+        If Write_via_SUSI = True Then
+            timercnt = 100              ' 100x=1s
+        Else
+            timercnt = 10               ' 10x=100ms
+        End If
+        timerflag = False
+        Timer1.Interval = 10       ' 10ms
+        Timer1.Enabled = True       ' =100ms
+
+        Do While RXflag = False
+            DoEvents
+            If MSComm1.InBufferCount > 0 Then Call MSComm1_OnComm
+            If timerflag = True Then Exit Do
+            If Abbruch_Anforderung = True Then Exit Do
+        Loop
+        Timer1.Enabled = False
+        'If RXflag = False Then GoTo timeout
+End Sub
+
+Private Sub Timer1_Timer()
+    timeout = True
+    timercnt = timercnt - 1
+    If timercnt < 1 Then
+        Timer1.Enabled = False
+        timerflag = True
+    End If
+End Sub
+
+Private Sub Timer2_Timer()
+	T2Cnt = T2Cnt + 1
+End Sub
+
+Sub bufferinbin()
+	Dim temp1 As Byte
+	temp1 = inbyte(0)        'Asc(Buffer)
+	If temp1 - 128 >= 0 Then temp1 = temp1 - 128: bits(7) = 1 Else bits(7) = 0
+	If temp1 - 64 >= 0 Then temp1 = temp1 - 64: bits(6) = 1 Else bits(6) = 0
+	If temp1 - 32 >= 0 Then temp1 = temp1 - 32: bits(5) = 1 Else bits(5) = 0
+	If temp1 - 16 >= 0 Then temp1 = temp1 - 16: bits(4) = 1 Else bits(4) = 0
+	If temp1 - 8 >= 0 Then temp1 = temp1 - 8: bits(3) = 1 Else bits(3) = 0
+	If temp1 - 4 >= 0 Then temp1 = temp1 - 4: bits(2) = 1 Else bits(2) = 0
+	If temp1 - 2 >= 0 Then temp1 = temp1 - 2: bits(1) = 1 Else bits(1) = 0
+	bits(0) = temp1
+End Sub
+
+Private Sub wait_ms_2(timercntin)
+	Dim mStartTime As Long
+	Dim mAktTime As Long
+	mStartTime = GetTime
+	Do
+		'DoEvents
+		mAktTime = GetTime
+	Loop Until mAktTime - mStartTime > timercntin
+End Sub
+
+Private Sub RTS_ON()
+    MSComm1.RTSEnable = True        ' Schiene ein
+    MSComm1.Handshaking = comRTS
+    MSComm1.Handshaking = comNone
+End Sub
+
+Private Sub RTS_OFF()
+    MSComm1.RTSEnable = False     ' Schiene aus
+    MSComm1.Handshaking = comRTS
+    MSComm1.Handshaking = comNone
+End Sub
+
+Public Sub wait(timercntin)
+    timercnt = timercntin
+    timerflag = False
+    Timer1.Interval = 10    ' 10ms
+    Timer1.Enabled = True
+
+	Do
+		DoEvents
+		If Abbruch_Anforderung = True Then Exit Do
+	Loop Until timerflag = True
+    Timer1.Enabled = False
+End Sub
+
+
+Public Sub wait_ms(timercntin)
+    timercnt = timercntin
+    timerflag = False
+    Timer1.Interval = 1    ' 1ms
+    Timer1.Enabled = True
+	Do
+		DoEvents
+		If Abbruch_Anforderung = True Then Exit Do
+	Loop Until timerflag = True
+    Timer1.Enabled = False
+End Sub
+
+
+Private Sub Do_Jobs()
+	Run_Active = True
+	cmd_ende.Caption = Strings(95, Sprache) 'Abbrechen
+	cmd_ende.BackColor = RGB(255, 0, 0)
+	lab_fs.Caption = "0"
+	lab_3.Caption = " /  0"
+	Flash_Gestartet = True
+	lab_fs.Caption = "0"
+	vorteiler_doevents = 0
+	List1.Clear
+
+	'If MX31ZL_Conn = False Then Write_via_SUSI = False
+	If Write_via_SUSI = True Then CRC_New = 1
+
+	'Call Print_Controls(Me)
+
+	'Flash_RTU=True -> RTU_load wählen, Verbindung aufbauen, Fertiges File Flashen
+	'Write_RTU=True -> RTU_save wählen, Daten Auswerten, File Schreiben
+	'nur_cv = True  -> Verbindung aufbauen, Daten Auswerten, File schreiben, EEProm programmieren
+	'alle False     -> Verbindung aufbauen, Daten Auswerten, File schreiben, Flash programmieren, EEProm programmieren
+
+	' File wählen das geflasht (Decoder) werden soll
+	If Flash_RTU = True Then
+	  If Reload = False Then
+		If RTU_open = 1 Then
+		  List1.AddItem ("Fehler beim Öffnen der Datei")
+		  List1.ListIndex = List1.ListCount - 1
+		  GoTo Abbruch
+		End If
+	  End If
+	  Call verbindung_aufbauen
+	  If Verbindung = False Then GoTo Abbruch
+	  If Abbruch_Anforderung = True Then GoTo Abbruch
+
+	Else
+
+	  ' Wenn nicht nur File geschrieben werden soll Verbindung zum Decoder aufbauen
+	  If Write_RTU = False Then
+		Call verbindung_aufbauen
+		If Verbindung = False Then GoTo Abbruch
+		If Abbruch_Anforderung = True Then GoTo Abbruch
+	  Else
+		' Nur RTU-File schreiben
+		Sounddecoder = True
+		'Speichergroesse = 4194302
+		Speichergroesse = Get_Flash_Size(Projekt.ExportTyp)
+		'If Projekt.ExportTyp = Flash128MBit Then Speichergroesse = 16777216
+		EE_Größe = 1024
+	  End If
+
+	  ' File wählen das geschrieben (HDD) werden soll
+	  If Write_RTU = True Then
+		If RTU_save = 1 Then  ' File wählen in das geschrieben werden soll
+		  List1.AddItem ("Fehler beim Öffnen der Datei")
+		  List1.ListIndex = List1.ListCount - 1
+		  GoTo Abbruch
+		End If
+		'GoTo Temp_File_flashen
+	  Else  ' beim direkt Flashen Temp-Datei nehmen
+		RTU_File = Tempdatei
+	  End If
+
+	  ' RTU File schreiben
+	  If Reload = False Then
+		Call RTU_File_schreiben
+		Call RTU_File_CRC32_berechnen
+	  End If
+	  
+	  If Write_RTU = True Then
+		GoTo Fertig
+	  End If
+	End If
+
+	' Verbindung zu Decoder steht
+	' Filename in "RTU_File"
+	  
+	If Write_RTU = False And Fehler_beim_Schreiben = False Then ' File nur schreiben nicht flashen
+
+	  ' In Decoder übertragen
+	  If MSComm1.PortOpen = False Then GoTo Abbruch
+	  If Abbruch_Anforderung = True Then List1.AddItem ("Abbruch"): GoTo Abbruch
+
+	  ' Flash programmieren
+	  If nur_cv = False And Sounddecoder = True Then
+		Func_Ret = Program_Flash
+	  Else
+		Func_Ret = ProgFlash.Ok
+	  End If
+
+	  ' EEProm programmieren (wenn Flash ok)
+	  If Func_Ret = ProgFlash.Ok Then
+		If Verify_Flash = False Then
+			Func_Ret = Program_EEprom
+		End If
+	  End If
+
+		If Decoder.Typ = Flash128MBit Then
+			Call Send_Ausstieg
+		End If
+
+	End If
+
+	Fertig:
+	  ' Fertig
+	  wait 20
+	If Fehler_beim_Schreiben = True Then
+		List1.AddItem ("Fehler beim Schreiben")
+	Else
+		If Func_Ret = 0 Then
+			List1.AddItem ("Fertig")
+		Else
+			List1.AddItem ("Abbruch")
+		End If
+	End If
+	List1.ListIndex = List1.ListCount - 1
+
+	Abbruch:
+
+	Close                       ' File close
+
+	If Write_RTU = False Then
+	  verbindung_beenden        ' Comm close
+	End If
+
+	Run_Active = False          ' Verhinderung des rekursiven Aufrufens löschen
+	lab_fs.Caption = "Fertig"
+	lab_3.Caption = "(R=Reload)"
+
+	If Abbruch_Anforderung = True Then
+		Unload Me  ' User Abbruch
+		Exit Sub
+	End If
+
+	cmd_ende.Caption = Strings(94, Sprache)       ' Button: Abbrechen -> Schließen
+	cmd_ende.BackColor = RGB(0, 255, 0)           ' Listenfeld=Grün
+
+	Exit Sub
+
+	timeout:
+	List1.AddItem "Timeout bei Block " + CStr(Blocks_gesamt)
+	List1.ListIndex = List1.ListCount - 1
+	Close #1
+	GoTo Abbruch
+End Sub
+
+Private Sub Form_Activate()
+	If Flash_Gestartet = True Then Exit Sub
+	Reload = False
+
+	Dim SampleNr As Integer
+	Dim S16Bit_Da As Boolean
+	Dim S44kHz_Da As Boolean
+
+	Set clsRsmp = New Resampler
+
+	Projekt.ExportTyp = Projekt.Typ
+
+	Call Do_Jobs
+End Sub

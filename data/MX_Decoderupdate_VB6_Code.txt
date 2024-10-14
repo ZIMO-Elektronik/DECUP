@@ -1,0 +1,639 @@
+Dim X As Integer
+Dim portda As Boolean
+Dim Stringtemp As String
+Dim buffer As String
+Dim trys As Integer
+Dim data As Byte
+Dim filelaenge As Long
+Dim filepos As Long
+Dim errorcounter As Integer
+Dim ack As Integer
+Dim startbyte As Integer
+Public timerflag As Boolean
+Dim timercntin As Integer
+Public timercnt As Integer
+Dim temp1 As Integer
+Dim bits(8) As Boolean
+Dim bytecount As Long
+Dim Crcbyte As Byte
+Dim dekoder(256) As String
+Dim datenbeginn As Long
+Dim datenlaenge As Long
+Dim dekodername As String
+Dim datenende As Long
+Dim dekoderart As DecArten
+Dim inbuffer As Variant
+Dim inbyte() As Byte
+Dim ackda As Boolean
+Dim outbuffer As Variant
+Dim outbyte(100) As Byte
+Dim sendin As Byte
+Dim response As Integer
+Dim flagzurück As Boolean
+Dim debugflag As Boolean
+Dim BlockCnt As Integer
+Dim Err_Pos As Integer  ' BlockCnt von letztem Fehler
+Dim Blocksize As Integer
+
+Dim outdata As Variant
+Dim outdata2 As Variant
+Dim out1byte(0) As Byte
+Dim out1byte2(0) As Byte
+Dim out34byte(33) As Byte
+Dim out66byte(65) As Byte
+Dim out65byte(64) As Byte
+Dim out64byte(63) As Byte
+Dim out256byte(255) As Byte
+Dim outXbyte() As Byte
+Dim RXflag As Boolean
+
+Dim msg As String
+Dim Decup1 As String
+Dim Rueckmeldung_Soll As String
+Dim Rueckmeldung_Ist As String
+Const Err_Max As Integer = 30
+
+' ---------------------------------- Start -------------------------------------------------
+
+Private Sub Command3_Click()
+	Dim sb As Integer
+	Dim preamcnt As Integer
+	Dim Ret1 As Ret_String
+	Dim Start_tmp As Integer
+	Dim Pausen_Timing As Long
+	Dim read_str As String
+	Dim mStartTime As Long
+	Dim mAktTime As Long
+	Dim W1 As Long
+	Dim W2 As Long
+	Dim Err_Cnt As Integer
+
+
+	frm_log.lst_deb.AddItem "Öffne Port " & comport
+		On Error GoTo erroropenport2
+		MSComm2.OverlappedIO = False
+		MSComm2.Settings = "38400,N,8,2"
+		MSComm2.Handshaking = comNone
+		MSComm2.InputLen = 1
+		MSComm2.InputMode = comInputModeText
+		MSComm2.RTSEnable = False     ' Schiene aus
+		MSComm2.DTREnable = False
+		MSComm2.CommPort = comport
+		MSComm2.RThreshold = 0
+		MSComm2.SThreshold = 0
+		MSComm2.PortOpen = True
+	frm_log.lst_deb.AddItem "Port " & comport & " geöffnet"
+		
+	If MX31ZL_Conn = True Then
+	  wait (50)
+	  Decup1 = "DECUP_EIN" & Chr$(13)
+	  'Rueckmeldung_Soll = "OK" & Chr$(13)
+	  MSComm2.Output = Decup1
+	  wait (50)
+	End If
+
+	read_str = MSComm2.Input
+	MSComm2.InputMode = comInputModeBinary
+
+	MSComm2.RThreshold = 1
+	preamcnt = 100
+	Pausen_Timing = 40
+
+	' Preamble initialisieren
+	out1byte(0) = CByte(239)
+	outdata = out1byte
+	out1byte2(0) = CByte(191)
+	outdata2 = out1byte2
+
+	' --------------- Timing messen (um Pausenzeit zwischen Preamble-Bytes möglichst exakt einzuhalten, nicht unbedingt nötig) ---------------------
+	Dim Zeit_20_Pream As Long
+	Dim Max_Trys_Timing As Long
+	Dim Timing_ok As Boolean
+
+	Max_Trys_Timing = 0
+	Do
+		mStartTime = GetTime
+		For W1 = 1 To 20
+			MSComm2.Output = outdata
+			For W2 = 0 To Pausen_Timing
+			Next
+			MSComm2.Output = outdata2
+			For W2 = 0 To Pausen_Timing
+			Next
+		Next
+		mAktTime = GetTime
+		Zeit_20_Pream = mAktTime - mStartTime
+	frm_log.lst_deb.AddItem "Try=" & CStr(Max_Trys_Timing) & " : Counter=" & CStr(Pausen_Timing) & " : Zeit=" & CStr(Zeit_20_Pream)
+		Timing_ok = True
+		If Zeit_20_Pream < (Val(txt_timing_soll) * 1) Then Timing_ok = False
+		If Zeit_20_Pream > (Val(txt_timing_soll) * 1.5) Then Timing_ok = False
+		If Zeit_20_Pream < (Val(txt_timing_soll) / 2) Then Zeit_20_Pream = (Val(txt_timing_soll) / 2)
+		If Timing_ok = False Then
+			Pausen_Timing = (CStr(Pausen_Timing * Val(txt_timing_soll)) / Zeit_20_Pream)
+			If Pausen_Timing < 1000 Then Pausen_Timing = 1000
+			txt_timing = CStr(Pausen_Timing)
+			DoEvents
+		End If
+		Max_Trys_Timing = Max_Trys_Timing + 1
+	Loop Until Timing_ok = True Or Max_Trys_Timing > 20
+
+	' --------------- Schiene ein ---------------------
+	RTS_ON
+	wait (2)
+
+	' --------------- Preamble senden ---------------------
+
+	For W1 = 1 To preamcnt
+		MSComm2.Output = outdata
+		For W2 = 0 To Pausen_Timing
+		Next
+		
+		MSComm2.Output = outdata2
+		For W2 = 0 To Pausen_Timing
+		Next
+	Next
+
+	' --------------- Startbyte senden ---------------------
+		trys = 1
+		sb = 1
+
+	trystart:
+		startbyte = typ_coll(sb)
+		
+		MSComm2.InBufferCount = 0           ' Buffer löschen
+		RXflag = False
+	frm_log.lst_deb.AddItem "Suche Decoder ID: " & CStr(typ_coll(sb))
+		Call send(typ_coll(sb))
+
+		timercnt = 5               ' 5x
+		timerflag = False
+		Timer2.Interval = 5       ' 5ms
+		Timer2.Enabled = True       ' =25ms
+
+		Do While RXflag = False
+		DoEvents
+		If MSComm2.InBufferCount > 0 Then Call MSComm2_OnComm
+		If timerflag = True Then Exit Do
+		Loop
+		Timer2.Enabled = False
+		
+		If RXflag = True Then GoTo startack
+	frm_log.lst_deb.AddItem "Keine Antwort von ID:" & CStr(typ_coll(sb))
+	weitersuchen:
+		If sb < typ_coll.Count Then
+			sb = sb + 1
+		Else
+			trys = trys - 1
+			sb = 1
+		End If
+		If trys = 0 Then GoTo keineAntwort
+		GoTo trystart
+		
+		
+
+	startack:       'Ack empfangen, auf gültigkeit prüfen
+	frm_log.lst_deb.AddItem "Antwort von ID " & CStr(typ_coll(sb))
+	frm_log.lst_deb.AddItem "Antwort = " & CStr(inbyte(0))
+		Call bufferinbin
+		If bits(0) = True Then GoTo antwortungueltig2
+		If bits(3) = False Then GoTo antwortungueltig2
+		If bits(6) = True Then GoTo antwortungueltig2
+		
+	daten:
+		On Error GoTo filenoopen
+		Open infile For Binary Access Read As #1
+		On Error GoTo Errorlog
+		Stringtemp = Input(1, #1)
+		If Stringtemp = "D" Then GoTo Neues_Format
+		If Stringtemp <> ";" Then GoTo infile_defekt
+	nächste_soft:
+		Stringtemp = Input(3, #1)   ' Startbyte einlesen
+		If Val(Stringtemp) = startbyte Then GoTo soft_da
+		Stringtemp = Input(25, #1)  ' Rest überspringen
+		Stringtemp = Input(1, #1)
+		If Stringtemp = ":" Then GoTo soft_nicht_da
+		If Stringtemp = ";" Then GoTo nächste_soft
+		GoTo infile_defekt
+		
+	soft_da:    ' Start,Bytes,Name auslesen
+		datenbeginn = Val(Input(7, #1))
+		datenlaenge = Val(Input(6, #1))
+		dekodername = Trim(Input(8, #1))
+		Stringtemp = Input(3, #1)
+		dekoderart = Val(Input(1, #1))
+		GoTo Test_Soft
+
+	  '--------------------
+	Neues_Format:
+		If Read_Value.String <> "F" Then GoTo infile_defekt    ' 2. Zeichen muss "F" sein
+		Stringtemp = Read_Value.String                   ' 3. Zeichen ist Versionsnummer (1)
+		  ' Jetzt kommt erstes ID-Byte
+	suchnext2:
+		Start_tmp = CInt(Read_Value.String)
+		datenbeginn = CLng(Read_Value.String) ' Start
+		datenlaenge = CLng(Read_Value.String) ' Laenge
+		dekodername = Read_Value.String  ' Name
+		Stringtemp = Read_Value.String                     ' Versionsnummer Haupt
+		Stringtemp = Read_Value.String                     ' Versionsnummer Unter
+		Ret1 = Read_Value                           ' Typ 16/18 Pic
+		dekoderart = Ret1.String
+		If Start_tmp = startbyte Then GoTo Test_Soft
+		Do While Ret1.End = Chr$(9)     ' unbekannte Parameter verwerfen
+			Ret1 = Read_Value
+		Loop
+		If Ret1.End = ";" Then GoTo suchnext2
+		GoTo soft_nicht_da
+	  '--------------------
+
+	Test_Soft:
+		If Check2.Value = 0 Then
+			List2.AddItem dekodername & " " & Strings(6)
+			frm_log.lst_deb.AddItem dekodername & " gefunden"
+		Else
+			List2.AddItem dekodername & " " & Strings(24)
+		End If
+
+	' Testen ob richtige Software
+		Get #1, datenbeginn + 1, data
+		If data <> startbyte Then
+			If dekoder(data) = "" Then Stringtemp = "Geladene Software ist nicht für dieses Produkt" Else Stringtemp = "Geladene Software ist für " + dekoder(data)
+			List2.AddItem Stringtemp
+			List2.AddItem "Update wird nicht durchgeführt"
+			GoTo endprog
+		End If
+	' Anzahl der Blöcke und Sicherheitsbytes senden
+		Get #1, datenbeginn, data
+		wait (5)
+		send (data - 1)
+		If waitack = False Then GoTo uebertragungsfehler
+		wait (5)
+		
+		send (85)
+		If waitack = False Then GoTo uebertragungsfehler
+		wait (5)
+		
+		send (170)
+		If waitack = False Then GoTo uebertragungsfehler
+		wait (5)
+		bytecount = 0
+		BlockCnt = 0    ' Absolute Blocknummer
+		filepos = datenbeginn + 1
+		datenende = datenbeginn + datenlaenge - 1
+
+	If dekoderart = DecArten.PIC16 Then
+		Blocksize = 32
+	End If
+	If dekoderart = DecArten.PIC18 Then
+		Blocksize = 64
+	End If
+	ReDim outXbyte(Blocksize + 1)
+
+	'-------------------------------- PIC 16/18 ------------------------------
+	sendnext2:
+		errorcounter = 0
+		
+	send64byte:
+		Crcbyte = 0
+		Crcbyte = Crcbyte Xor (BlockCnt Mod 256)
+		outXbyte(0) = (BlockCnt Mod 256)
+		frm_log.lst_deb.AddItem "Num=" & CStr((BlockCnt Mod 256))
+		filepos = datenbeginn + 1 + (BlockCnt * Blocksize)
+		For X = 1 To Blocksize
+			filepos = filepos + 1
+			If filepos > datenende Then GoTo sendend
+			Get #1, filepos, data
+			Crcbyte = Crcbyte Xor data
+			outXbyte(X) = data
+		Next
+		outXbyte(Blocksize + 1) = Crcbyte
+
+		outdata = outXbyte
+		MSComm2.Output = outdata
+
+		RXflag = False
+		timercnt = 5               ' 5x
+		timerflag = False
+		Timer2.Interval = 10       ' 10ms
+		Timer2.Enabled = True       ' =50ms
+
+		Do While RXflag = False
+			DoEvents
+			If MSComm2.InBufferCount > 0 Then Call MSComm2_OnComm
+			If timerflag = True Then Exit Do
+		Loop
+		Timer2.Enabled = False
+		
+		If Check2.Value = 0 Then
+			If RXflag = False Then GoTo timeout
+			Call bufferinbin                         ' Empfangenes Byte in Bits aufspalten
+			If bits(0) = True Then GoTo crcfehler2   ' Byte testen
+			If bits(3) = False Then GoTo crcfehler2  ' Gut =010
+			If bits(6) = True Then GoTo crcfehler2
+		End If
+		
+		' Paket erfolgreich übertragen
+		Do While Err_Cnt > 0
+			List2.RemoveItem (List2.ListCount - 1)
+			Err_Cnt = Err_Cnt - 1
+		Loop
+		BlockCnt = BlockCnt + 1
+		GoTo sendnext2
+
+
+	sendend:    ' Übertragung erfolgreich
+		wait (50)  ' 0,5s warten damit Decoder noch alles erledigen kann
+	endloop:
+		GoTo endprog
+
+	' Time Out
+	syncfehler:
+		If errorcounter > Err_Max Then GoTo uebertragungsfehler
+		List2.AddItem Strings(36) & " " & CStr(filepos)
+		'If debugflag = True Then Print #2, "*** keine Rückmeldung***"
+		GoTo uebertragungsfehler
+
+
+	crcfehler2: 'PIC16/18
+		frm_log.lst_deb.AddItem "CRC-Fehler " + CStr(BlockCnt) + " " + CStr(errorcounter)
+		List2.AddItem "CRC-Fehler " + CStr(BlockCnt) + " " + CStr(errorcounter)
+		Err_Cnt = Err_Cnt + 1 ' Für löschen der Error-Anzeige falls wieder Ack kommt
+
+		If errorcounter = 0 Then Err_Pos = BlockCnt ' Error-Position merken
+		errorcounter = errorcounter + 1
+		If errorcounter > Err_Max Then GoTo uebertragungsfehler
+
+		Select Case (errorcounter Mod 9)
+		Case 0
+			BlockCnt = Err_Pos
+		Case 1
+			BlockCnt = Err_Pos + 1
+		Case 2
+			BlockCnt = Err_Pos
+		Case 3
+			BlockCnt = Err_Pos + 1
+		Case 4
+			BlockCnt = Err_Pos
+		Case 5
+			BlockCnt = Err_Pos + 2
+		Case 6
+			BlockCnt = Err_Pos - 2
+		Case 7
+			BlockCnt = Err_Pos + 3
+		Case 8
+			BlockCnt = Err_Pos + 4
+		End Select
+		If BlockCnt < 0 Then BlockCnt = 0
+		GoTo send64byte
+
+	keineAntwort:
+		List2.AddItem Strings(26)
+		GoTo endprog
+
+	filenoopen:
+		List2.AddItem Strings(27)
+		frm_log.lst_deb.AddItem "File open error"
+		GoTo endprog
+
+	uebertragungsfehler:
+		List2.BackColor = RGB(255, 0, 0)
+		List2.AddItem Strings(28) & " " & CStr(filepos)
+		GoTo endprog
+
+	erroropenport2:
+		List2.AddItem Strings(29)
+		frm_log.lst_deb.AddItem "Error open Port"
+		GoTo endprog
+		
+	antwortungueltig:
+		List2.AddItem "      Bitte entfernen Sie eventuell vorhandene Elko's!"
+		GoTo endprog
+
+	antwortungueltig2:
+		List2.AddItem Strings(31) 'txt_coll("Fehlerhafte Rückmeldung")
+		GoTo weitersuchen
+
+	infile_defekt:
+		List2.AddItem Strings(32) 'txt_coll("Softwarefile ist corrupt")
+		GoTo endprog
+		
+	soft_nicht_da:
+		If dekoder(startbyte) = "" Then Stringtemp = "Unbekannter Dekoder gefunden" Else Stringtemp = dekoder(startbyte) + " gefunden"
+		List2.AddItem "Verbindungsaufbau erfolgreich"
+		List2.AddItem Stringtemp
+		List2.AddItem "Softwarefile enthält keine Software"
+		List2.AddItem "für dieses Produkt"
+		GoTo endprog
+
+	timeout:
+		List2.AddItem Strings(36) & " " & CStr(filepos)
+		List2.BackColor = RGB(255, 0, 0)
+		GoTo endprog
+
+
+	endprog:
+		On Error Resume Next
+		Close #1
+
+		On Error Resume Next
+		RTS_OFF
+		  If MSComm2.PortOpen = True Then
+			  MSComm2.PortOpen = False
+			  List2.AddItem Strings(33) 'txt_coll("Comm Port geschlossen")
+		  End If
+		Command3.Enabled = True
+		Command5.Enabled = True
+		cmd_beenden.Enabled = True
+		cmd_zurück.Enabled = True
+Exit Sub
+
+	Errorlog:
+	frm_log.lst_deb.AddItem Err.Description
+	Resume Next
+End Sub
+
+
+Sub send(sendin)
+    out1byte(0) = sendin
+    outdata = out1byte
+    RXflag = False
+    MSComm2.Output = outdata
+End Sub
+
+
+Public Sub wait(timercntin)
+    timercnt = timercntin
+    timerflag = False
+    Timer2.Interval = 10    ' 10ms
+    Timer2.Enabled = True
+
+Do
+    DoEvents
+	Loop Until timerflag = True
+End Sub
+
+
+Public Function waitack() As Boolean
+    If Check2.Value = 1 Then
+        waitack = True
+        Exit Function
+    End If
+    waitack = False
+    timerflag = False
+    timercnt = 10
+    Timer2.Interval = 10    ' 100ms auf ack warten
+    Timer2.Enabled = True
+
+    Do While RXflag = False
+        DoEvents
+        If MSComm2.InBufferCount > 0 Then Call MSComm2_OnComm
+        If timerflag = True Then Exit Do
+    Loop
+    Timer2.Enabled = False
+    If RXflag = False Then Exit Function
+    waitack = True
+End Function
+
+
+Sub bufferinbin()
+    temp1 = inbyte(0)        'Asc(Buffer)
+    If temp1 - 128 >= 0 Then temp1 = temp1 - 128: bits(7) = 1 Else bits(7) = 0
+    If temp1 - 64 >= 0 Then temp1 = temp1 - 64: bits(6) = 1 Else bits(6) = 0
+    If temp1 - 32 >= 0 Then temp1 = temp1 - 32: bits(5) = 1 Else bits(5) = 0
+    If temp1 - 16 >= 0 Then temp1 = temp1 - 16: bits(4) = 1 Else bits(4) = 0
+    If temp1 - 8 >= 0 Then temp1 = temp1 - 8: bits(3) = 1 Else bits(3) = 0
+    If temp1 - 4 >= 0 Then temp1 = temp1 - 4: bits(2) = 1 Else bits(2) = 0
+    If temp1 - 2 >= 0 Then temp1 = temp1 - 2: bits(1) = 1 Else bits(1) = 0
+    bits(0) = temp1
+End Sub
+
+
+Private Sub MSComm2_OnComm()
+   Select Case MSComm2.CommEvent
+   ' Handle each event or error by placing
+   ' code below each case statement
+
+   ' Errors
+    Case comEventBreak   ' A Break was received.
+         List2.AddItem "Break"
+         'List2.AddItem MSComm2.Break
+    Case comEventFrame   ' Framing Error
+         List2.AddItem "Framing error"
+         frm_log.lst_deb.AddItem "COM-Int: Framing error"
+    Case comEventOverrun   ' Data Lost.
+        List2.AddItem "Data Lost"
+    Case comEventRxOver   ' Receive buffer overflow.
+         List2.AddItem "RxOver"
+    Case comEventRxParity   ' Parity Error.
+         List2.AddItem "Parity Error"
+    Case comEventTxFull   ' Transmit buffer full.
+         List2.AddItem "TX Full"
+    Case comEventDCB   ' Unexpected error retrieving DCB]
+         List2.AddItem "Unexpected Error"
+
+    ' Events
+    Case comEvCD   ' Change in the CD line.
+    Case comEvCTS   ' Change in the CTS line.
+    Case comEvDSR   ' Change in the DSR line.
+    Case comEvRing   ' Change in the Ring Indicator.
+    Case comEvReceive   ' Received RThreshold # of
+                        ' chars.
+'    Debug.Print MSComm2.InBufferCount;
+    Do  ' Nur letztes empfangenes Byte auswerten
+        inbuffer = MSComm2.Input
+        inbyte = inbuffer
+        frm_log.lst_deb.AddItem "COM-Int Data Receive: " & CStr(inbyte(0))
+    Loop Until MSComm2.InBufferCount = 0
+    RXflag = True
+      
+    Case comEvSend   ' There are SThreshold number of
+                     ' characters in the transmit
+                     ' buffer.
+    Case comEvEOF   ' An EOF charater was found in
+                     ' the input stream
+    End Select
+End Sub
+
+Private Sub Timer2_Timer()
+    timercnt = timercnt - 1
+    If timercnt < 1 Then
+        Timer2.Enabled = False
+        timerflag = True
+    End If
+
+End Sub
+
+
+Private Sub wait_ms(timercntin)
+    timercnt = timercntin
+    timerflag = False
+    Timer3.Interval = 1    ' 1ms
+    Timer3.Enabled = True
+    Do
+        DoEvents
+    Loop Until timerflag = True
+End Sub
+Private Sub wait_ms_2(timercntin)
+Dim mStartTime As Long
+Dim mAktTime As Long
+If timercntin = 0 Then Exit Sub
+mStartTime = GetTime
+Do
+    'DoEvents
+    mAktTime = GetTime
+Loop Until mAktTime - mStartTime > timercntin
+End Sub
+
+
+Private Sub Timer3_Timer()
+    timeout = True
+    timercnt = timercnt - 1
+    If timercnt < 1 Then
+        Timer3.Enabled = False
+        timerflag = True
+    End If
+End Sub
+
+
+Private Sub send_1_byte(ByVal in_data As Byte)
+    out1byte(0) = in_data
+    outdata = out1byte
+    MSComm2.Output = outdata
+End Sub
+
+
+Private Sub Timer1_Timer()
+Dim Pausen_Timing As Long
+Dim W1 As Long
+Dim W2 As Long
+
+' Preamble initialisieren
+out1byte(0) = CByte(239)
+outdata = out1byte
+out1byte2(0) = CByte(191)
+outdata2 = out1byte2
+Pausen_Timing = 185000
+For W1 = 1 To 60
+    MSComm2.Output = outdata
+    For W2 = 0 To Pausen_Timing
+    Next
+    
+    MSComm2.Output = outdata2
+    For W2 = 0 To Pausen_Timing
+    Next
+Next
+
+End Sub
+
+
+Private Sub RTS_ON()
+    MSComm2.RTSEnable = True        ' Schiene ein
+    MSComm2.Handshaking = comRTS
+    MSComm2.Handshaking = comNone
+End Sub
+
+Private Sub RTS_OFF()
+    MSComm2.RTSEnable = False     ' Schiene aus
+    MSComm2.Handshaking = comRTS
+    MSComm2.Handshaking = comNone
+End Sub
+
