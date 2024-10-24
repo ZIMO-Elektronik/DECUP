@@ -1,0 +1,1 @@
+- The documented max time for a single pulse is wrong, it's <300µs but rather <5000µs
