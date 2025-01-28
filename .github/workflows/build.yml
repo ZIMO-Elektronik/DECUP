@@ -7,5 +7,11 @@ on:
     branches: [master]
 
 jobs:
+  esp-elf-gcc:
+    uses: ZIMO-Elektronik/.github-workflows/.github/workflows/esp-elf-gcc.yml@v0.0.9
+    with:
+      path: examples/esp32
+      target: esp32
+
   x86_64-linux-gnu-gcc:
-    uses: ZIMO-Elektronik/.github-workflows/.github/workflows/x86_64-linux-gnu-gcc.yml@v0.0.8
+    uses: ZIMO-Elektronik/.github-workflows/.github/workflows/x86_64-linux-gnu-gcc.yml@v0.0.9
