@@ -1,0 +1,3 @@
+- The documented max time for a single pulse is wrong, it's <300µs but rather <5000µs
+- DECUP uses 2 stop bits, this needs to be documented
+  - I also thought about changing that in the encoder, but it doesn't really matter. The RMT eot level can be adjusted anyhow...?

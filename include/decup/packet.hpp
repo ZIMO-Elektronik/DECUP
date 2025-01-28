@@ -17,4 +17,4 @@ namespace decup {
 
 using Packet = ztl::inplace_vector<uint8_t, DECUP_MAX_PACKET_SIZE>;
 
-}  // namespace decup
+} // namespace decup
