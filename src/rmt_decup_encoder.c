@@ -29,6 +29,12 @@
 #  include <esp_linux_helper.h>
 #endif
 
+#if defined(CONFIG_RMT_TX_ISR_HANDLER_IN_IRAM)
+#  define RMT_IRAM_ATTR IRAM_ATTR
+#else
+#  define RMT_IRAM_ATTR
+#endif
+
 // https://github.com/espressif/esp-idf/issues/13032
 #if !defined(RMT_MEM_ALLOC_CAPS)
 #  if CONFIG_RMT_ISR_IRAM_SAFE || CONFIG_RMT_RECV_FUNC_IN_IRAM
@@ -57,11 +63,11 @@ typedef struct {
 /// \param  data_size     Size of primary_data, in bytes
 /// \param  ret_state     Returned current encoder state
 /// \return Number of RMT symbols that the primary data has been encoded into
-static size_t IRAM_ATTR rmt_encode_decup(rmt_encoder_t* encoder,
-                                         rmt_channel_handle_t channel,
-                                         void const* primary_data,
-                                         size_t data_size,
-                                         rmt_encode_state_t* ret_state) {
+static size_t RMT_IRAM_ATTR rmt_encode_decup(rmt_encoder_t* encoder,
+                                             rmt_channel_handle_t channel,
+                                             void const* primary_data,
+                                             size_t data_size,
+                                             rmt_encode_state_t* ret_state) {
   size_t encoded_symbols = 0;
   rmt_encode_state_t state = RMT_ENCODING_RESET;
   rmt_encode_state_t session_state = RMT_ENCODING_RESET;
@@ -155,7 +161,7 @@ static esp_err_t rmt_del_decup_encoder(rmt_encoder_t* encoder) {
 ///                             invalid argument
 /// \retval ESP_FAIL            Reset RMT DECUP encoder failed because of other
 ///                             error
-static esp_err_t rmt_decup_encoder_reset(rmt_encoder_t* encoder) {
+static esp_err_t RMT_IRAM_ATTR rmt_decup_encoder_reset(rmt_encoder_t* encoder) {
   rmt_decup_encoder_t* decup_encoder =
     __containerof(encoder, rmt_decup_encoder_t, base);
   rmt_encoder_reset(decup_encoder->copy_encoder);
