@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.3
+- Bugfix add missing `command.hpp` header
+
 ## 0.1.2
 - Bugfix add both preamble bytes to `Command`
 

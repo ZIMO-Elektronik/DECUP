@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "command.hpp"
 #include "crc8.hpp"
 #include "decup/packet.hpp"
 #include "exor.hpp"
