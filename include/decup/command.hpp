@@ -20,10 +20,11 @@ enum class Command : uint8_t {
   CvWrite = 2u,
   DeleteFlash = 3u,
   ReadDecoderType = 4u,
-  XORData = 3u, // WTF
-  CRCData = 4u, // ?
+  XORData = 3u,
+  CRCData = 4u,
   CRCorXORQuery = 7u,
-  Preamble = 0xEFu,
+  Preamble0 = 0xBFu,
+  Preamble1 = 0xEFu,
 };
 
 } // namespace decup
