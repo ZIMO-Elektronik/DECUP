@@ -106,7 +106,7 @@ For feedback, a double pulse counts as ack and a single pulse as nak. If a decod
 > Please note that the blocks must be of different lengths depending on the decoder ID. Decoders with ID 200, 202, 203, 204 and 205 use 32 byte long blocks, all other decoders use 64 bytes.
 
 ### ZPP
-When the first generation of ZIMO sound decoders (MX) was developed, the DECUP protocol was extended to include ZPP updates.Fortunately, the meaning of the transmitted data no longer depends only on the order, but command codes have been defined.
+When the first generation of ZIMO sound decoders (MX) was developed, the DECUP protocol was extended to include ZPP updates. Fortunately, the meaning of the transmitted data no longer depends only on the order, but command codes have been defined.
 
 #### Entry
 In contrast to the ZSU update, the entry sequence has been extended by another 0xEF byte. The **200µs** pause between each individual byte must also be observed here.
