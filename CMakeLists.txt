@@ -33,10 +33,10 @@ set(DECUP_TX_BIT_TIMING
     CACHE STRING "Duration of a bit of command station")
 set(DECUP_TX_ZPP_STOPBIT_TIMING
     50u
-    CACHE STRING "Duration of a ZPP stopbit of command station")
+    CACHE STRING "Duration of a ZPP stop bit of command station")
 set(DECUP_TX_ZSU_STOPBIT_TIMING
     200u
-    CACHE STRING "Duration of a ZSU stopbit of command station")
+    CACHE STRING "Duration of a ZSU stop bit of command station")
 
 add_library(DECUP INTERFACE)
 add_library(DECUP::DECUP ALIAS DECUP)

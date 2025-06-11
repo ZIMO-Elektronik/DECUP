@@ -1,7 +1,7 @@
 # Changelog
 
 ## 0.1.4
-- Bugfix add missing stopbit ([#3](https://github.com/ZIMO-Elektronik/DECUP/issues/3))
+- Bugfix add missing stop bit ([#3](https://github.com/ZIMO-Elektronik/DECUP/issues/3))
 
 ## 0.1.3
 - Bugfix add missing `command.hpp` header
