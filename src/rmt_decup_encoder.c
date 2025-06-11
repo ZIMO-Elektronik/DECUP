@@ -75,8 +75,8 @@ static size_t RMT_IRAM_ATTR rmt_encode_decup(rmt_encoder_t* encoder,
     __containerof(encoder, rmt_decup_encoder_t, base);
   rmt_encoder_handle_t copy_encoder = decup_encoder->copy_encoder;
 
-  while (decup_encoder->num_symbols < data_size * (1u + CHAR_BIT + 1u)) {
-    size_t const i = decup_encoder->num_symbols % (1u + CHAR_BIT + 1u);
+  while (decup_encoder->num_symbols < data_size * (1u + CHAR_BIT + 2u)) {
+    size_t const i = decup_encoder->num_symbols % (1u + CHAR_BIT + 2u);
 
     // Start
     if (i == 0u) {
@@ -96,7 +96,7 @@ static size_t RMT_IRAM_ATTR rmt_encode_decup(rmt_encoder_t* encoder,
     else if (i < (1u + CHAR_BIT)) {
       uint8_t const* data = (uint8_t const*)primary_data;
       size_t const byte_index =
-        decup_encoder->num_symbols / (1u + CHAR_BIT + 1u);
+        decup_encoder->num_symbols / (1u + CHAR_BIT + 2u);
       bool const bit = data[byte_index] & (1u << (i - 1u));
       size_t const tmp = copy_encoder->encode(copy_encoder,
                                               channel,
@@ -121,7 +121,7 @@ static size_t RMT_IRAM_ATTR rmt_encode_decup(rmt_encoder_t* encoder,
       encoded_symbols += tmp;
       decup_encoder->num_symbols += tmp;
       if (session_state & RMT_ENCODING_COMPLETE &&
-          decup_encoder->num_symbols >= data_size * (1u + CHAR_BIT + 1u)) {
+          decup_encoder->num_symbols >= data_size * (1u + CHAR_BIT + 2u)) {
         state |= RMT_ENCODING_COMPLETE;
         decup_encoder->num_symbols = 0u;
         break;

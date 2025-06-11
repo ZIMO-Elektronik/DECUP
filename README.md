@@ -292,13 +292,13 @@ This library is meant to be consumed with CMake,
 
 ```cmake
 # Either by including it with CPM
-cpmaddpackage("gh:ZIMO-Elektronik/DECUP@0.1.2")
+cpmaddpackage("gh:ZIMO-Elektronik/DECUP@0.1.4")
 
 # or the FetchContent module
 FetchContent_Declare(
   DECUP
   GIT_REPOSITORY "https://github.com/ZIMO-Elektronik/DECUP"
-  GIT_TAG v0.1.2)
+  GIT_TAG v0.1.4)
 
 target_link_libraries(YourTarget PRIVATE DECUP::DECUP)
 ```
@@ -307,7 +307,7 @@ or, on [ESP32 platforms](https://www.espressif.com/en/products/socs/esp32), with
 ```yaml
 dependencies:
   zimo-elektronik/decup:
-    version: "0.1.2"
+    version: "0.1.4"
 ```
 
 ### Build
@@ -317,7 +317,7 @@ dependencies:
 On [ESP32 platforms](https://www.espressif.com/en/products/socs/esp32) examples from the [examples](https://github.com/ZIMO-Elektronik/DECUP/raw/master/examples) subfolder can be built directly using the [IDF Frontend](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/tools/idf-py.html).
 
 ```sh
-idf.py create-project-from-example "zimo-elektronik/decup^0.1.2:esp32"
+idf.py create-project-from-example "zimo-elektronik/decup^0.1.4:esp32"
 ```
 
 ## Usage
