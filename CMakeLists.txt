@@ -56,7 +56,7 @@ endif()
 target_common_warnings(DECUP INTERFACE)
 
 if(NOT TARGET ZTL::ZTL)
-  cpmaddpackage("gh:ZIMO-Elektronik/ZTL@0.21.0")
+  cpmaddpackage("gh:ZIMO-Elektronik/ZTL@0.21.1")
 endif()
 
 target_link_libraries(DECUP INTERFACE ZTL::ZTL)
