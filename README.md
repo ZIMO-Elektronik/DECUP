@@ -1,6 +1,6 @@
 # DECUP
 
-[![build](https://github.com/ZIMO-Elektronik/DECUP/actions/workflows/build.yml/badge.svg)](https://github.com/ZIMO-Elektronik/DECUP/actions/workflows/build.yml) [![tests](https://github.com/ZIMO-Elektronik/DECUP/actions/workflows/tests.yml/badge.svg)](https://github.com/ZIMO-Elektronik/DECUP/actions/workflows/tests.yml) [![license](https://img.shields.io/github/license/ZIMO-Elektronik/DECUP)](https://github.com/ZIMO-Elektronik/DECUP/raw/master/LICENSE)
+[![build](https://github.com/ZIMO-Elektronik/DECUP/actions/workflows/build.yml/badge.svg)](https://github.com/ZIMO-Elektronik/DECUP/actions/workflows/build.yml) [![tests](https://github.com/ZIMO-Elektronik/DECUP/actions/workflows/tests.yml/badge.svg)](https://github.com/ZIMO-Elektronik/DECUP/actions/workflows/tests.yml) [![release](https://github.com/ZIMO-Elektronik/DECUP/actions/workflows/release.yml/badge.svg)](https://github.com/ZIMO-Elektronik/DECUP/actions/workflows/release.yml) [![license](https://img.shields.io/github/license/ZIMO-Elektronik/DECUP)](https://github.com/ZIMO-Elektronik/DECUP/raw/master/LICENSE)
 
 > [!IMPORTANT]  
 > Not recommended for new designs.

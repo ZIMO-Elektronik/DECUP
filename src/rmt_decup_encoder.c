@@ -35,15 +35,6 @@
 #  define RMT_IRAM_ATTR
 #endif
 
-// https://github.com/espressif/esp-idf/issues/13032
-#if !defined(RMT_MEM_ALLOC_CAPS)
-#  if CONFIG_RMT_ISR_IRAM_SAFE || CONFIG_RMT_RECV_FUNC_IN_IRAM
-#    define RMT_MEM_ALLOC_CAPS (MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)
-#  else
-#    define RMT_MEM_ALLOC_CAPS MALLOC_CAP_DEFAULT
-#  endif
-#endif
-
 static char const* TAG = "rmt";
 
 /// DECUP encoder
@@ -187,8 +178,7 @@ esp_err_t rmt_new_decup_encoder(decup_encoder_config_t const* config,
   ESP_GOTO_ON_FALSE(
     config && ret_encoder, ESP_ERR_INVALID_ARG, err, TAG, "invalid argument");
 
-  decup_encoder =
-    heap_caps_calloc(1, sizeof(rmt_decup_encoder_t), RMT_MEM_ALLOC_CAPS);
+  decup_encoder = rmt_alloc_encoder_mem(sizeof(rmt_decup_encoder_t));
   ESP_GOTO_ON_FALSE(
     decup_encoder, ESP_ERR_NO_MEM, err, TAG, "no mem for decup encoder");
 
