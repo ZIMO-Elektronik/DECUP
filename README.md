@@ -39,7 +39,7 @@ DECUP is an acronym for **Dec**oder **Up**date, a protocol for [ZPP](https://git
 The protocol was developed for the MXDECUP, an update device without a microprocessor. The device placed a UART signal (at that time ±12V) more or less directly on the tracks. The connection itself uses **LSB first 38400 baud 8N2**, i.e. 8 data bits, no parity and 2 stop bits. A special feature is that the RTS line is used to switch the track voltage on and off.
 
 ### Feedback
-In principle, the receiver (decoder) has the option of responding with one or two short-circuit pulses after a transmission in the time window provided for this purpose. These pulses are **<8µs long** and, if two pulses are made, come at an **interval of exactly 300µs**. The duration of the **entire time window can unfortunately vary**, which is why in the following it is explicitly stated for each transmission how long, if at all, to wait for a response.
+In principle, the receiver (decoder) has the option of responding with one or two short-circuit pulses after a transmission in the time window provided for this purpose. These pulses are **<8µs long** and, if two pulses are made, come at an **interval of 150-160µs**. The duration of the **entire time window can unfortunately vary**, which is why in the following it is explicitly stated for each transmission how long, if at all, to wait for a response.
 
 ### ZSU
 In its original version, the protocol was intended exclusively for [ZSU](https://github.com/ZIMO-Elektronik/ZSU) updates. For this reason, the decoder update procedure does not have any meaningfully segmented packets, but simply sends a bunch of raw data whose meaning is determined solely by the sequence.
@@ -173,7 +173,7 @@ In contrast to the ZSU update, the entry sequence has been extended by another 0
 | 1 byte |       | CV address low byte     |
 | 1 byte |       | CRC8 checksum           |
 | 1 byte |       | CV value                |
-| 1 ms   | \|    | Single pulse on success |
+| 1 ms   | \|\|  | Double pulse on success |
 
 #### Flash Erase
 **Flash Erase** erases the entire flash memory. Please note that deleting a NOR flash can take up to 60s depending on the manufacturer and type.
