@@ -36,7 +36,12 @@ DECUP is an acronym for **Dec**oder **Up**date, a protocol for [ZPP](https://git
 
 ## Protocol
 ### Transmission
-The protocol was developed for the MXDECUP, an update device without a microprocessor. The device placed a UART signal (at that time ±12V) more or less directly on the tracks. The connection itself uses **LSB first 38400 baud 8N2**, i.e. 8 data bits, no parity and 2 stop bits. A special feature is that the RTS line is used to switch the track voltage on and off.
+The protocol was developed for the MXDECUP, an update device without a microprocessor. The device placed a UART signal (at that time ±12V) more or less directly on the tracks. The connection itself uses **LSB first 38400 baud 8N2**, i.e. 8 data bits, no parity and 2 stop bits.
+
+#### RTS
+A special feature is that **the RTS line is used to switch the track voltage on and off**.
+> [!WARNING]  
+> Using RTS is not optional. ZSP already sends packets for calibration while RTS is off. The data received during this time must under no circumstances be transmitted on the track.
 
 ### Feedback
 In principle, the receiver (decoder) has the option of responding with one or two short-circuit pulses after a transmission in the time window provided for this purpose. These pulses are **<8µs long** and, if two pulses are made, come at an **interval of 150-160µs**. The duration of the **entire time window can unfortunately vary**, which is why in the following it is explicitly stated for each transmission how long, if at all, to wait for a response.
@@ -45,7 +50,7 @@ In principle, the receiver (decoder) has the option of responding with one or tw
 In its original version, the protocol was intended exclusively for [ZSU](https://github.com/ZIMO-Elektronik/ZSU) updates. For this reason, the decoder update procedure does not have any meaningfully segmented packets, but simply sends a bunch of raw data whose meaning is determined solely by the sequence.
 
 #### Entry
-The following two bytes represent the entry sequence for a ZSU firmware update. The two bytes must each be sent **at least 20 times**, with a pause of at least **200µs** between each byte.
+The following two bytes represent the entry sequence for a ZSU firmware update. The two bytes must each be sent **at least 20 times**, with a pause of at least **300µs** between each byte.
 
 | Length | Value | Description         |
 | ------ | ----- | ------------------- |
@@ -109,7 +114,7 @@ For feedback, a double pulse counts as ack and a single pulse as nak. If a decod
 When the first generation of ZIMO sound decoders (MX) was developed, the DECUP protocol was extended to include ZPP updates. Fortunately, the meaning of the transmitted data no longer depends only on the order, but command codes have been defined.
 
 #### Entry
-In contrast to the ZSU update, the entry sequence has been extended by another 0xEF byte. The **200µs** pause between each individual byte must also be observed here.
+In contrast to the ZSU update, the entry sequence has been extended by another 0xEF byte. The **300µs** pause between each individual byte must also be observed here.
 
 | Length | Value | Description         |
 | ------ | ----- | ------------------- |
@@ -184,7 +189,7 @@ In contrast to the ZSU update, the entry sequence has been extended by another 0
 | 1 byte | 0x55  |                         |
 | 1 byte | 0xFF  |                         |
 | 1 byte | 0xFF  |                         |
-| ?      | \|    | Single pulse on success |
+| 200 s  | \|    | Single pulse on success |
 
 #### Flash Write (Deprecated)
 **Flash Write** writes to flash memory.
@@ -213,7 +218,7 @@ In contrast to the ZSU update, the entry sequence has been extended by another 0
 | 1 byte   |            | Block count low byte                                                |
 | 256 byte |            |                                                                     |
 | 1 byte   |            | CRC8 checksum (starting at the block count, **initial value 0x55**) |
-| 1 ms     | \| or \|\| | Single pulse on failure<br>Double pulse on success                  |
+| 100 ms   | \| or \|\| | Single pulse on failure<br>Double pulse on success                  |
 
 #### Decoder ID
 **Decoder ID** reads a single byte decoder ID. Just like the **CV Read** command, this one contains 8 feedback windows.

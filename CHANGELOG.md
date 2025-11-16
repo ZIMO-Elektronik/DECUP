@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.5
+- Bugfix increase timeouts ([#8](https://github.com/ZIMO-Elektronik/DECUP/issues/8))
+
 ## 0.1.4
 - Bugfix add missing stop bit ([#3](https://github.com/ZIMO-Elektronik/DECUP/issues/3))
 
