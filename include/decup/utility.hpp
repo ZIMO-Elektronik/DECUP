@@ -10,9 +10,11 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <ztl/inplace_vector.hpp>
 #include "packet.hpp"
+#include "timeouts.hpp"
 
 namespace decup {
 
@@ -34,18 +36,32 @@ constexpr size_t decoder_id2data_size(uint8_t decoder_id) {
 ///
 /// \param  packet  Packet
 /// \return Pulse timeout in [µs]
-constexpr uint32_t packet2pulse_timeout(Packet const& packet) {
-  switch (size(packet)) {
-    // Timeout for security bytes used in ZSU update
-    case 1uz:
-      if (packet[0uz] == 0x55u || packet[0uz] == 0xAAu) return 5'000u;
-      break;
-
-    // Timeout for ZSU update packets
-    case 34uz: [[fallthrough]];
-    case 66uz: return 100'000u;
+constexpr uint32_t packet2timeout(Packet const& packet) {
+  // ZSU security bytes
+  if (auto const count{size(packet)};
+      count == 1uz && (packet[0uz] == 0x55u || packet[0uz] == 0xAAu))
+    return Timeouts::zsu_security_bytes;
+  // ZPP flash erase
+  else if (count == 4uz && packet[0uz] == 0x03u && packet[1uz] == 0x55u &&
+           packet[2uz] == 0xFFu && packet[3uz] == 0xFFu)
+    return Timeouts::zpp_flash_erase;
+  // ZPP and ZSU flash writes
+  else if (count >= 34uz) {
+    static_assert(Timeouts::zpp_flash_write == Timeouts::zsu_blocks);
+    return Timeouts::zpp_flash_write;
   }
-  return 1'000u;
+  // Default
+  else {
+    static_assert(
+      std::ranges::all_of(std::array{Timeouts::zpp_cv_read,
+                                     Timeouts::zpp_cv_write,
+                                     Timeouts::zpp_decoder_id,
+                                     Timeouts::zpp_crc_or_xor,
+                                     Timeouts::zsu_decoder_id,
+                                     Timeouts::zsu_block_count},
+                          [](auto t) { return t == Timeouts::zpp_cv_read; }));
+    return Timeouts::zpp_cv_read;
+  }
 }
 
 } // namespace decup
