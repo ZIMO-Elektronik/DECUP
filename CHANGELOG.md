@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.6
+- Add `pulse_interval` member to `Timeouts`
+
 ## 0.1.5
 - Bugfix increase timeouts ([#8](https://github.com/ZIMO-Elektronik/DECUP/issues/8))
 
