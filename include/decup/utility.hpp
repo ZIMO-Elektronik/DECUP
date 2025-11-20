@@ -30,6 +30,16 @@ constexpr size_t decoder_id2data_size(uint8_t decoder_id) {
            : 64uz;
 }
 
+/// Get bootloader size for specific decoder ID
+///
+/// \param  id  Decoder ID
+/// \return Bootloader size for decoder ID
+constexpr size_t decoder_id2bootloader_size(uint8_t decoder_id) {
+  return decoder_id == 200u || (decoder_id >= 202u && decoder_id <= 205u)
+           ? 256uz
+           : 2048uz;
+}
+
 /// Get pulse timeout in [µs] for specific packet
 ///
 /// Different packets require different pulse timeouts.
@@ -49,12 +59,12 @@ constexpr uint32_t packet2timeout(Packet const& packet) {
   else if (count >= 34uz) {
     static_assert(Timeouts::zpp_flash_write == Timeouts::zsu_blocks);
     return Timeouts::zpp_flash_write;
-  }
+  } else if (count == 6uz && packet[0uz] == 0x06u && packet[1uz] == 0xAA)
+    return Timeouts::zpp_cv_write;
   // Default
   else {
     static_assert(
       std::ranges::all_of(std::array{Timeouts::zpp_cv_read,
-                                     Timeouts::zpp_cv_write,
                                      Timeouts::zpp_decoder_id,
                                      Timeouts::zpp_crc_or_xor,
                                      Timeouts::zsu_decoder_id,

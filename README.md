@@ -79,7 +79,7 @@ Next, the block count is transmitted.
 The block count is directly proportional to the number of update blocks actually transmitted and is calculated as follows.
 
 ```cpp
-uint8_t block_count = firmware_size / 256u + 8u - 1u;
+uint8_t block_count = (firmware_size + bootloader_size) / 256u - 1u; 
 ```
 
 #### Security bytes
@@ -162,7 +162,7 @@ In contrast to the ZSU update, the entry sequence has been extended by another 0
 | 1 byte |       | CV address high byte    |
 | 1 byte |       | CV address low byte     |
 | 1 byte |       | CV value                |
-| 1 ms   | \|    | Single pulse on success |
+| 5 ms   | \|    | Single pulse on success |
 
 > [!WARNING]  
 > This version of the command is deprecated and only provided here for documentation purposes. If your decoder expects this command, please update the firmware.
@@ -178,7 +178,7 @@ In contrast to the ZSU update, the entry sequence has been extended by another 0
 | 1 byte |       | CV address low byte     |
 | 1 byte |       | CRC8 checksum           |
 | 1 byte |       | CV value                |
-| 1 ms   | \|\|  | Double pulse on success |
+| 5 ms   | \|\|  | Double pulse on success |
 
 #### Flash Erase
 **Flash Erase** erases the entire flash memory. Please note that deleting a NOR flash can take up to 60s depending on the manufacturer and type.

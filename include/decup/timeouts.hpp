@@ -20,7 +20,7 @@ struct Timeouts {
   // ZPP
   static constexpr auto zpp_preamble{preamble}; // No response
   static constexpr auto zpp_cv_read{1'000u};
-  static constexpr auto zpp_cv_write{1'000u};
+  static constexpr auto zpp_cv_write{5'000u};
   static constexpr auto zpp_flash_erase{200u * 1'000u * 1'000u};
   static constexpr auto zpp_flash_write{100u * 1'000u};
   static constexpr auto zpp_decoder_id{1'000u};
