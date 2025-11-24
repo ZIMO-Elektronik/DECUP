@@ -40,6 +40,18 @@ constexpr size_t decoder_id2bootloader_size(uint8_t decoder_id) {
            : 2048uz;
 }
 
+/// Get stop bit count for specifig decoder ID
+///
+/// Usually, 2 stop bits are used, but some decoder types respond directly after
+/// the first stop bit.
+///
+/// \param decoder_id Decoder ID
+/// \return Stop bit count for decoder ID
+constexpr size_t decoder_id2stop_bit_count(uint8_t decoder_id) {
+  return decoder_id == 200u || (decoder_id >= 202u && decoder_id <= 205u) ? 1uz
+                                                                          : 2uz;
+}
+
 /// Get pulse timeout in [µs] for specific packet
 ///
 /// Different packets require different pulse timeouts.

@@ -36,7 +36,9 @@ DECUP is an acronym for **Dec**oder **Up**date, a protocol for [ZPP](https://git
 
 ## Protocol
 ### Transmission
-The protocol was developed for the MXDECUP, an update device without a microprocessor. The device placed a UART signal (at that time ±12V) more or less directly on the tracks. The connection itself uses **LSB first 38400 baud 8N2**, i.e. 8 data bits, no parity and 2 stop bits.
+The protocol was developed for the MXDECUP, an update device without a microprocessor. The device placed a UART signal (at that time ±12V) more or less directly on the tracks. The connection itself uses **LSB first 38400 baud 8N2**, i.e. 8 data bits, no parity and 2 stop bits. 
+> [!WARNING] 
+> Older decoder models (e.g. MX63) use **LSB first 38400 baud 8N1** (8 data bits, no parity, 1 stop bit) and respond directly after the stop bit. This seems to affect all models with PIC16 MCU.
 
 #### RTS
 A special feature is that **the RTS line is used to switch the track voltage on and off**.
