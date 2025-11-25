@@ -14,7 +14,7 @@ namespace decup {
 
 /// Response pulse timeouts in [µs]
 struct Timeouts {
-  static constexpr auto pulse_interval{200u}; // Interval between pulses
+  static constexpr auto pulse_interval{200u}; // Timeout between pulses
   static constexpr auto preamble{300u};       // No response
 
   // ZPP
@@ -29,7 +29,7 @@ struct Timeouts {
   // ZSU
   static constexpr auto zsu_preamble{preamble}; // No response
   static constexpr auto zsu_decoder_id{1'000u};
-  static constexpr auto zsu_block_count{1'000u};
+  static constexpr auto zsu_page_count{1'000u};
   static constexpr auto zsu_security_bytes{5'000u};
   static constexpr auto zsu_blocks{100u * 1'000u};
 };

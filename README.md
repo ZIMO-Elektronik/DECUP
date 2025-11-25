@@ -70,19 +70,22 @@ After entry, the decoder IDs (e.g. 221 for MX645) are sent one by one to determi
 | 1 byte | >0x80 | Single byte decoder ID (found in ZSU file) |
 | 1 ms   | \|\|  | Double pulse on success                    |
 
-#### Block count
-Next, the block count is transmitted.
+#### Page count
+Next, the page count is transmitted.
 
 | Length | Value | Description             |
 | ------ | ----- | ----------------------- |
-| 1 byte |       | Block count             |
+| 1 byte |       | Page count              |
 | 1 ms   | \|    | Single pulse on success |
 
-The block count is directly proportional to the number of update blocks actually transmitted and is calculated as follows.
+The page count is directly proportional to the number of update blocks actually transmitted and is calculated as follows.
 
 ```cpp
-uint8_t block_count = (firmware_size + bootloader_size) / 256u - 1u; 
+uint8_t page_count = (firmware_size + bootloader_size) / 256u - 1u; 
 ```
+
+> [!WARNING]  
+> Page and block counts are **not** identical! The block count is calculated internally from the page count.
 
 #### Security bytes
 The block count followed by the transmission of two security bytes, first 0x55, then 0xAA.
@@ -273,7 +276,7 @@ Queries a decoder wether it support a CRC8 checksum. Just like the **CV Read** c
 #### ZSU Update
 1. [Entry](#entry) to enter ZSU firmware updates
 2. [Decoder ID](#decoder-id) to find connected decoder type
-3. [Block Count](#block-count)
+3. [Page Count](#page-count)
 4. [Security Bytes](#security-bytes)
 5. [Blocks](#blocks) to transmit ZSU firmware data
 
