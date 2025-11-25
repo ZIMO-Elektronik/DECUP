@@ -36,7 +36,9 @@ DECUP is an acronym for **Dec**oder **Up**date, a protocol for [ZPP](https://git
 
 ## Protocol
 ### Transmission
-The protocol was developed for the MXDECUP, an update device without a microprocessor. The device placed a UART signal (at that time ±12V) more or less directly on the tracks. The connection itself uses **LSB first 38400 baud 8N2**, i.e. 8 data bits, no parity and 2 stop bits.
+The protocol was developed for the MXDECUP, an update device without a microprocessor. The device placed a UART signal (at that time ±12V) more or less directly on the tracks. The connection itself uses **LSB first 38400 baud 8N2**, i.e. 8 data bits, no parity and 2 stop bits. 
+> [!WARNING] 
+> Older decoder models (e.g. MX63) use **LSB first 38400 baud 8N1** (8 data bits, no parity, 1 stop bit) and respond directly after the stop bit. This seems to affect all models with PIC16 MCU.
 
 #### RTS
 A special feature is that **the RTS line is used to switch the track voltage on and off**.
@@ -68,19 +70,22 @@ After entry, the decoder IDs (e.g. 221 for MX645) are sent one by one to determi
 | 1 byte | >0x80 | Single byte decoder ID (found in ZSU file) |
 | 1 ms   | \|\|  | Double pulse on success                    |
 
-#### Block count
-Next, the block count is transmitted.
+#### Page count
+Next, the page count is transmitted.
 
 | Length | Value | Description             |
 | ------ | ----- | ----------------------- |
-| 1 byte |       | Block count             |
+| 1 byte |       | Page count              |
 | 1 ms   | \|    | Single pulse on success |
 
-The block count is directly proportional to the number of update blocks actually transmitted and is calculated as follows.
+The page count is directly proportional to the number of update blocks actually transmitted and is calculated as follows.
 
 ```cpp
-uint8_t block_count = firmware_size / 256u + 8u - 1u;
+uint8_t page_count = (firmware_size + bootloader_size) / 256u - 1u; 
 ```
+
+> [!WARNING]  
+> Page and block counts are **not** identical! The block count is calculated internally from the page count.
 
 #### Security bytes
 The block count followed by the transmission of two security bytes, first 0x55, then 0xAA.
@@ -162,7 +167,7 @@ In contrast to the ZSU update, the entry sequence has been extended by another 0
 | 1 byte |       | CV address high byte    |
 | 1 byte |       | CV address low byte     |
 | 1 byte |       | CV value                |
-| 1 ms   | \|    | Single pulse on success |
+| 5 ms   | \|    | Single pulse on success |
 
 > [!WARNING]  
 > This version of the command is deprecated and only provided here for documentation purposes. If your decoder expects this command, please update the firmware.
@@ -178,7 +183,7 @@ In contrast to the ZSU update, the entry sequence has been extended by another 0
 | 1 byte |       | CV address low byte     |
 | 1 byte |       | CRC8 checksum           |
 | 1 byte |       | CV value                |
-| 1 ms   | \|\|  | Double pulse on success |
+| 5 ms   | \|\|  | Double pulse on success |
 
 #### Flash Erase
 **Flash Erase** erases the entire flash memory. Please note that deleting a NOR flash can take up to 60s depending on the manufacturer and type.
@@ -271,7 +276,7 @@ Queries a decoder wether it support a CRC8 checksum. Just like the **CV Read** c
 #### ZSU Update
 1. [Entry](#entry) to enter ZSU firmware updates
 2. [Decoder ID](#decoder-id) to find connected decoder type
-3. [Block Count](#block-count)
+3. [Page Count](#page-count)
 4. [Security Bytes](#security-bytes)
 5. [Blocks](#blocks) to transmit ZSU firmware data
 

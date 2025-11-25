@@ -24,10 +24,38 @@ namespace decup {
 ///
 /// \param  id  Decoder ID
 /// \return Data size for decoder ID
-constexpr size_t decoder_id2data_size(uint8_t decoder_id) {
+constexpr size_t decoder_id2block_size(uint8_t decoder_id) {
+  // MX82 || MX62 || MX63 || MX64 || MX64H
   return decoder_id == 200u || (decoder_id >= 202u && decoder_id <= 205u)
            ? 32uz
            : 64uz;
+}
+
+/// Get bootloader size for specific decoder ID
+///
+/// \param  id  Decoder ID
+/// \return Bootloader size for decoder ID
+constexpr size_t decoder_id2bootloader_size(uint8_t decoder_id) {
+  // MX82 || MX62 || MX63 || MX64 || MX64H
+  if (auto const block_size{decoder_id2block_size(decoder_id)};
+      block_size == 32uz)
+    return 256uz;
+  // MX820B || MX821 || MX822
+  else if (decoder_id == 242u || decoder_id == 248u || decoder_id == 162u)
+    return 4096uz;
+  // others
+  else return 2048uz;
+}
+
+/// Get stop bit count for specific decoder ID
+///
+/// Usually, 2 stop bits are used, but some decoder types respond directly after
+/// the first stop bit.
+///
+/// \param decoder_id Decoder ID
+/// \return Stop bit count for decoder ID
+constexpr size_t decoder_id2stop_bit_count(uint8_t decoder_id) {
+  return decoder_id2block_size(decoder_id) == 32uz ? 1uz : 2uz;
 }
 
 /// Get pulse timeout in [µs] for specific packet
@@ -49,16 +77,16 @@ constexpr uint32_t packet2timeout(Packet const& packet) {
   else if (count >= 34uz) {
     static_assert(Timeouts::zpp_flash_write == Timeouts::zsu_blocks);
     return Timeouts::zpp_flash_write;
-  }
+  } else if (count == 6uz && packet[0uz] == 0x06u && packet[1uz] == 0xAA)
+    return Timeouts::zpp_cv_write;
   // Default
   else {
     static_assert(
       std::ranges::all_of(std::array{Timeouts::zpp_cv_read,
-                                     Timeouts::zpp_cv_write,
                                      Timeouts::zpp_decoder_id,
                                      Timeouts::zpp_crc_or_xor,
                                      Timeouts::zsu_decoder_id,
-                                     Timeouts::zsu_block_count},
+                                     Timeouts::zsu_page_count},
                           [](auto t) { return t == Timeouts::zpp_cv_read; }));
     return Timeouts::zpp_cv_read;
   }
