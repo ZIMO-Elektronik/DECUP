@@ -52,7 +52,7 @@ In principle, the receiver (decoder) has the option of responding with one or tw
 In its original version, the protocol was intended exclusively for [ZSU](https://github.com/ZIMO-Elektronik/ZSU) updates. For this reason, the decoder update procedure does not have any meaningfully segmented packets, but simply sends a bunch of raw data whose meaning is determined solely by the sequence.
 
 #### Entry
-The following two bytes represent the entry sequence for a ZSU firmware update. The two bytes must each be sent **at least 20 times**, with a pause of at least **300µs** between each byte.
+The following two bytes represent the entry sequence for a ZSU firmware update. The two bytes must be sent alternately **at least 20 times**, with a pause of at least **300µs** between each byte.
 
 | Length | Value | Description         |
 | ------ | ----- | ------------------- |
