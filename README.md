@@ -9,8 +9,11 @@
 
 DECUP is an acronym for **Dec**oder **Up**date, a protocol for [ZPP](https://github.com/ZIMO-Elektronik/ZPP) and [ZSU](https://github.com/ZIMO-Elektronik/ZSU) updates over the track. The protocol is currently supported by the following products:
 - Command stations
+  - [ZIMO KLUG](https://www.zimo.at/web2010/products/KLUG-Kompaktes_Lade_und_Update-Geraet_EN.htm)
   - [ZIMO MXULF](https://www.zimo.at/web2010/products/InfMXULF_EN.htm)
   - [ZIMO MXDECUP](https://www.zimo.at/web2010/documents/MXDECUPE.pdf)
+  - [Open|Remise S3Main](https://openremise.at)
+  - [RTB](https://rtb4dcc.de)
 - Decoders
   - [ZIMO small-](http://www.zimo.at/web2010/products/lokdecoder_EN.htm) and [large-scale MX decoders](http://www.zimo.at/web2010/products/lokdecodergrosse_EN.htm)
 
