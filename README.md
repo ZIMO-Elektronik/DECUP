@@ -12,6 +12,7 @@ DECUP is an acronym for **Dec**oder **Up**date, a protocol for [ZPP](https://git
   - [ZIMO KLUG](https://www.zimo.at/web2010/products/KLUG-Kompaktes_Lade_und_Update-Geraet_EN.htm)
   - [ZIMO MXULF](https://www.zimo.at/web2010/products/InfMXULF_EN.htm)
   - [ZIMO MXDECUP](https://www.zimo.at/web2010/documents/MXDECUPE.pdf)
+  - [ROCO Z21](https://www.z21.eu/en)
   - [Open|Remise S3Main](https://openremise.at)
   - [RTB](https://rtb4dcc.de)
 - Decoders
