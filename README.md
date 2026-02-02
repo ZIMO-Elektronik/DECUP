@@ -17,6 +17,7 @@ DECUP is an acronym for **Dec**oder **Up**date, a protocol for [ZPP](https://git
   - [RTB](https://rtb4dcc.de)
 - Decoders
   - [ZIMO small-](http://www.zimo.at/web2010/products/lokdecoder_EN.htm) and [large-scale MX decoders](http://www.zimo.at/web2010/products/lokdecodergrosse_EN.htm)
+  - [ZIMO accessory decoders](http://www.zimo.at/web2010/products/zubehoerdecoder_EN.htm)
 
 <details>
   <summary>Table of Contents</summary>
