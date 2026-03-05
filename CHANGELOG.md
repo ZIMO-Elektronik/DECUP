@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.1
+- Add `CV-Set` command and subcommands
+
 ## 0.2.0
 - Rename `decoder_id2data_size` to `decoder_id2block_size`
 - Add `decoder_id2bootloader_size` function

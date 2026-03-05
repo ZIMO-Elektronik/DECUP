@@ -15,16 +15,27 @@
 namespace decup {
 
 /// Command codes
-enum class Command : uint8_t {
+enum struct Command : uint8_t {
   CvRead = 1u,
-  CvWrite = 2u,
+  CvWriteDeprecated = 2u,
   DeleteFlash = 3u,
   ReadDecoderType = 4u,
   XORData = 3u,
   CRCData = 4u,
+  CvWrite = 6u,
   CRCorXORQuery = 7u,
+  CvSet = 9u,
   Preamble0 = 0xBFu,
   Preamble1 = 0xEFu,
+};
+
+/// CV-Set subcommand codes
+enum struct CvSetSubcommand : uint8_t {
+  CvWrite = 4u,
+  CvWriteStart = 8u,
+  CvWriteEnd = 12u,
+  FeatureRequest = 16u,
+  ChangePage = 20u,
 };
 
 } // namespace decup
