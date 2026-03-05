@@ -277,6 +277,91 @@ Queries a decoder wether it support a CRC8 checksum. Just like the **CV Read** c
 > [!WARNING]  
 > This version of the command is deprecated and only provided here for documentation purposes. If your decoder expects this command, please update the firmware.
 
+#### CV-Set 
+Sub-command controlled operations for CV-Set manipulation. Changes or queries attributes of CV-Sets. 
+
+##### CV-Set Write CV 
+Writes a single CV in a CV-Set
+
+| Length | Value                      | Description                                         |
+| ------ | -------------------------- | --------------------------------------------------- |
+| 1 byte | 0x09                       | Command                                             |
+| 1 byte | 0x04 + CV-Addr MSB [1..0]  | Subcommand + MSB of CV Address                      |
+| 1 byte |                            | CV Address                                          |
+| 1 byte |                            | CV Value                                            |
+| 1 byte |                            | CRC8 Checksum (Byte [0..4], **initial value 0xAA**) |
+| 15 ms  | \| or \|\|                 | Double pulse on success                             |
+
+##### CV-Set Write Start 
+
+| Length | Value      | Description                                         |
+| ------ | ---------- | --------------------------------------------------- |
+| 1 byte | 0x09       | Command                                             |
+| 1 byte | 0x08       | Subcommand                                          |
+| 1 byte | 0x00       |                                                     |
+| 1 byte | 0x00       |                                                     |
+| 1 byte |            | CRC8 Checksum (Byte [0..4], **initial value 0xAA**) | 
+| 15 ms  | \| or \|\| | Double pulse on success                             |
+
+##### CV-Set Write End
+
+| Length | Value      | Description                                                   |
+| ------ | ---------- | ------------------------------------------------------------- |
+| 1 byte | 0x09       | Command                                                       |
+| 1 byte | 0x0C       | Subcommand                                                    |
+| 1 byte |            |                                                               |
+| 1 byte |            |                                                               |
+| 1 byte |            | CRC8 Checksum (Byte [0..4], **initial value 0xAA**)           |
+| 15 ms  | \| or \|\| | Double pulse on success                                       |
+
+##### CV-Set Feature Request
+Queries decoder support for CvSets and its capabilities. Just like the **CV Read** command, this one contains 8 feedback windows. The following table provides an overview on possible responses and their meaning.
+
+| Response [7..0]     | Description                     |
+| ------------------- | ------------------------------- |
+| 0 (or no response)  | CV-Sets not supported           |
+| 1                   | 256 Byte Decoder, 62 CVs max    |
+| 2                   | 256 Byte Decoder, 94 CVs max    |
+| 3                   | 256 Byte Decoder, 126 CVs max   |
+| 4                   | 1024 Byte Decoder, 84 CVs max   |
+| 5                   | 1024 Byte Decoder, 169 CVs max  |
+| 6                   | 1024 Byte Decoder, 255 CVs max  |
+| 7                   | 32k Eprom, ??? CVs max. (TBD)   |
+
+| Length | Value      | Description                                               |
+| ------ | ---------- | --------------------------------------------------------- |
+| 1 byte | 0x09       | Command                                                   |
+| 1 byte | 0x10       | Subcommand                                                |
+| 1 byte |            |                                                           |
+| 1 byte |            |                                                           |
+| 1 byte |            | CRC8 Checksum (Byte [0..4], **initial value 0xAA**)       |
+| 15 ms  | \| or \|\| | Single pulse if bit0 cleared<br>Double pulse if bit0 set  |
+| 1 byte | 0xFF       |                                                           |
+| 15 ms  | \| or \|\| | Single pulse if bit1 cleared<br>Double pulse if bit1 set  |
+| 1 byte | 0xFF       |                                                           |
+| 15 ms  | \| or \|\| | Single pulse if bit2 cleared<br>Double pulse if bit2 set  |
+| 1 byte | 0xFF       |                                                           |
+| 15 ms  | \| or \|\| | Single pulse if bit3 cleared<br>Double pulse if bit3 set  |
+| 1 byte | 0xFF       |                                                           |
+| 15 ms  | \| or \|\| | Single pulse if bit4 cleared<br>Double pulse if bit4 set  |
+| 1 byte | 0xFF       |                                                           |
+| 15 ms  | \| or \|\| | Single pulse if bit5 cleared<br>Double pulse if bit5 set  |
+| 1 byte | 0xFF       |                                                           |
+| 15 ms  | \| or \|\| | Single pulse if bit6 cleared<br>Double pulse if bit6 set  |
+| 1 byte | 0xFF       |                                                           |
+| 15 ms  | \| or \|\| | Single pulse if bit7 cleared<br>Double pulse if bit7 set  |
+
+##### CV-Set Change Page
+
+| Length | Value      | Description                                         |
+| ------ | ---------- | --------------------------------------------------- |
+| 1 byte | 0x09       | Command                                             |
+| 1 byte | 0x14       | Subcommand                                          |
+| 1 byte |            | CV Page-Hi                                          |
+| 1 byte |            | CV Page-Lo                                          |
+| 1 byte |            | CRC8 Checksum (Byte [0..4], **initial value 0xAA**) |
+| 15 ms  | \| or \|\| | Double pulse on success                             |
+
 ### Typical process
 #### ZSU Update
 1. [Entry](#entry) to enter ZSU firmware updates
@@ -307,13 +392,13 @@ This library is meant to be consumed with CMake,
 
 ```cmake
 # Either by including it with CPM
-cpmaddpackage("gh:ZIMO-Elektronik/DECUP@0.1.6")
+cpmaddpackage("gh:ZIMO-Elektronik/DECUP@0.2.1")
 
 # or the FetchContent module
 FetchContent_Declare(
   DECUP
   GIT_REPOSITORY "https://github.com/ZIMO-Elektronik/DECUP"
-  GIT_TAG v0.1.6)
+  GIT_TAG v0.2.1)
 
 target_link_libraries(YourTarget PRIVATE DECUP::DECUP)
 ```
@@ -322,7 +407,7 @@ or, on [ESP32 platforms](https://www.espressif.com/en/products/socs/esp32), with
 ```yaml
 dependencies:
   zimo-elektronik/decup:
-    version: "0.1.6"
+    version: "0.2.1"
 ```
 
 ### Build
@@ -332,7 +417,7 @@ dependencies:
 On [ESP32 platforms](https://www.espressif.com/en/products/socs/esp32) examples from the [examples](https://github.com/ZIMO-Elektronik/DECUP/raw/master/examples) subfolder can be built directly using the [IDF Frontend](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/tools/idf-py.html).
 
 ```sh
-idf.py create-project-from-example "zimo-elektronik/decup^0.1.6:esp32"
+idf.py create-project-from-example "zimo-elektronik/decup^0.2.1:esp32"
 ```
 
 ## Usage

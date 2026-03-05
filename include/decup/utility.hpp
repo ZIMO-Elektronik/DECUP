@@ -12,7 +12,9 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <utility>
 #include <ztl/inplace_vector.hpp>
+#include "command.hpp"
 #include "packet.hpp"
 #include "timeouts.hpp"
 
@@ -70,15 +72,25 @@ constexpr uint32_t packet2timeout(Packet const& packet) {
       count == 1uz && (packet[0uz] == 0x55u || packet[0uz] == 0xAAu))
     return Timeouts::zsu_security_bytes;
   // ZPP flash erase
-  else if (count == 4uz && packet[0uz] == 0x03u && packet[1uz] == 0x55u &&
-           packet[2uz] == 0xFFu && packet[3uz] == 0xFFu)
+  else if (count == 4uz &&
+           packet[0uz] == std::to_underlying(Command::DeleteFlash) &&
+           packet[1uz] == 0x55u && packet[2uz] == 0xFFu && packet[3uz] == 0xFFu)
     return Timeouts::zpp_flash_erase;
   // ZPP and ZSU flash writes
   else if (count >= 34uz) {
     static_assert(Timeouts::zpp_flash_write == Timeouts::zsu_blocks);
     return Timeouts::zpp_flash_write;
-  } else if (count == 6uz && packet[0uz] == 0x06u && packet[1uz] == 0xAA)
+  }
+  // ZPP CV Write
+  else if ((count == 5uz &&
+            packet[0uz] == std::to_underlying(Command::CvWriteDeprecated)) ||
+           (count == 6uz &&
+            packet[0uz] == std::to_underlying(Command::CvWrite) &&
+            packet[1uz] == 0xAA))
     return Timeouts::zpp_cv_write;
+  // ZPP CV-Set
+  else if (count >= 5uz && packet[0uz] == std::to_underlying(Command::CvSet))
+    return Timeouts::zpp_cvset;
   // Default
   else {
     static_assert(
