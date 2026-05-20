@@ -13,7 +13,7 @@ jobs:
       matrix:
         esp_idf_version: [latest, v5.5.3, v5.4.3, v5.3.4, v5.2.6, v5.1.7]
     steps:
-      - uses: actions/checkout@v5.0.0
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - uses: espressif/esp-idf-ci-action@v1.2.0
@@ -23,4 +23,4 @@ jobs:
           target: esp32
 
   x86_64-linux-gnu-gcc:
-    uses: ZIMO-Elektronik/.github-workflows/.github/workflows/x86_64-linux-gnu-gcc.yml@v0.3.0
+    uses: ZIMO-Elektronik/.github-workflows/.github/workflows/x86_64-linux-gnu-gcc.yml@v0.3.1
