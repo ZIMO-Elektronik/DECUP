@@ -7,7 +7,7 @@
 
 <img src="https://github.com/ZIMO-Elektronik/DECUP/raw/master/data/images/MXDECUP-VL.gif" width="20%" align="right">
 
-DECUP is an acronym for **Dec**oder **Up**date, a protocol for [ZPP](https://github.com/ZIMO-Elektronik/ZPP) and [ZSU](https://github.com/ZIMO-Elektronik/ZSU) updates over the track. The protocol is currently supported by the following products:
+DECUP is an acronym for **Dec**oder **Up**date, a protocol for [ZSU](https://github.com/ZIMO-Elektronik/ZSU) and [ZPP](https://github.com/ZIMO-Elektronik/ZPP) updates over the track. The protocol is currently supported by the following products:
 - Command stations
   - [ZIMO KLUG](https://www.zimo.at/web2010/products/KLUG-Kompaktes_Lade_und_Update-Geraet_EN.htm)
   - [ZIMO MXULF](https://www.zimo.at/web2010/products/InfMXULF_EN.htm)
