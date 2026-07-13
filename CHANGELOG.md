@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.2
+- Bugfix `esp_linux_helper.h` is deprecated ([#18](https://github.com/ZIMO-Elektronik/DECUP/issues/18))
+
 ## 0.2.1
 - Add `CV-Set` command and subcommands
 
